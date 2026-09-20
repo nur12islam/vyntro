@@ -767,6 +767,38 @@ export default {
       return stub.fetch("https://uno/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,playerId,action:body.action})});
     }
 
+    if (url.pathname === "/api/quiz" && request.method === "POST") {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const topic = String(body.topic || "General Knowledge").slice(0, 120);
+        const difficulty = String(body.difficulty || "Medium").slice(0, 20);
+        const count = Math.max(1, Math.min(15, Number(body.count) || 10));
+        const groq = env?.GROQ_API_KEY;
+        const openrouter = env?.OPENROUTER_API_KEY;
+        if (!groq && !openrouter) return Response.json({ok:false,error:"Quiz AI is not configured. Add GROQ_API_KEY or OPENROUTER_API_KEY to Worker secrets."},{status:503});
+        const prompt = `Create a ${difficulty} multiple-choice quiz about "${topic}". Return ONLY valid JSON in this exact shape: {"questions":[{"question":"...","options":["A","B","C","D"],"answer":0}]}. Generate exactly ${count} questions. Each must have exactly 4 distinct options and answer must be the zero-based index of the one correct option. No markdown.`;
+        let response, provider;
+        if (groq) {
+          provider="Groq";
+          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:.7,response_format:{type:"json_object"},messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
+        } else {
+          provider="OpenRouter";
+          response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO Quiz Arena"},body:JSON.stringify({model:"openrouter/free",temperature:.7,messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
+        }
+        if(!response.ok){const t=await response.text();return Response.json({ok:false,error:`${provider} request failed: ${response.status} ${t.slice(0,200)}`},{status:502});}
+        const data=await response.json();
+        const raw=data?.choices?.[0]?.message?.content;
+        let parsed;
+        try{parsed=JSON.parse(raw)}catch(_){return Response.json({ok:false,error:"Quiz AI returned invalid JSON. Try again."},{status:502});}
+        if(!Array.isArray(parsed?.questions)||parsed.questions.length!==count) return Response.json({ok:false,error:"Quiz AI returned an unexpected number of questions."},{status:502});
+        const questions=parsed.questions.map(q=>({question:String(q.question),options:Array.isArray(q.options)?q.options.slice(0,4).map(String):[],answer:Number(q.answer)}));
+        if(questions.some(q=>q.options.length!==4||q.answer<0||q.answer>3||!q.question)) return Response.json({ok:false,error:"Quiz AI returned an invalid question format."},{status:502});
+        return Response.json({ok:true,provider,questions});
+      } catch(error) {
+        return Response.json({ok:false,error:String(error?.message||error)},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/export" && request.method === "POST") {
       try {
         const data = await request.json();
