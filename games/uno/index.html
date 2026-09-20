@@ -165,12 +165,12 @@ function render(){
    const p=ps[i],el=document.querySelectorAll(".player")[i];
    el.classList.toggle("active",!!p&&i===game.turn);
    $("p"+i).textContent=p?.name||"Waiting…";
-   $("c"+i).textContent=p?(p.cards+" cards"):"—";
+   $("c"+i).textContent=p?((p.cards??p.hand?.length??0)+" cards"):"—";
  }
  $("p0").textContent="You";
  const discard=$("discard");discard.innerHTML="";if(game.discard)discard.appendChild(cardEl(game.discard));
  const hand=$("hand");hand.innerHTML="";
- (game.yourHand||[]).forEach((c,i)=>{
+ ((game.yourHand??game.players?.[game.you]?.hand)??[]).forEach((c,i)=>{
    const e=cardEl(c,true);
    const playable=c.c==="wild"||c.c===game.currentColor||c.v===game.discard?.v;
    if(game.turn!==game.you||!playable||game.winner!==null)e.classList.add("disabled");
