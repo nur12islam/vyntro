@@ -846,59 +846,95 @@ async function humanizerCall(env, system, user, providerHint = "") {
 }
 
 async function humanizeLongText(env, text, options) {
-  const chunks = humanizerChunks(text, 6500);
+  const chunks = humanizerChunks(text, 6000);
   if (!chunks.length) throw new Error("No text supplied.");
+
   const styleMap = {
-    natural:"natural, fluent and human-sounding without becoming casual",
-    academic:"academic, clear and readable while retaining an authentic student/research writing voice",
-    professional:"polished, professional and direct",
-    conversational:"warm, conversational and natural",
-    clear:"clear, concise and easy to follow"
+    natural: "natural and genuinely readable, with a relaxed but controlled human voice",
+    academic: "academic but not formulaic, like a thoughtful student or researcher explaining ideas in their own words",
+    professional: "professional, direct and polished without sounding corporate or templated",
+    conversational: "warm, conversational and clear, as if one person is naturally explaining the subject to another",
+    clear: "plain, precise and easy to follow, with unnecessary wording removed"
   };
   const depthMap = {
-    light:"Make conservative edits. Improve awkward wording, repetition and flow while staying very close to the original.",
-    balanced:"Rebuild sentence phrasing where useful, vary rhythm and transitions, and remove repetitive or formulaic wording while preserving the author's meaning.",
-    deep:"Substantially restructure sentence patterns and paragraph flow where appropriate, while preserving every substantive idea and not adding new facts."
+    light: "Make restrained edits. Keep the original wording where it already works, but fix stiffness, repetition and awkward phrasing.",
+    balanced: "Rewrite at the sentence level where useful. Vary sentence openings, lengths and structures, and replace generic phrasing with wording that fits the actual context.",
+    deep: "Rework sentence structure and paragraph flow substantially where it improves the writing. Keep the ideas, facts and intended meaning intact."
   };
   const lengthMap = {
-    preserve:"Keep approximately the same amount of information and overall length.",
-    shorter:"Make the result modestly shorter by removing redundancy, not by deleting important ideas.",
-    longer:"Develop wording modestly where clarity needs it, without adding new facts."
+    preserve: "Keep roughly the same information density and overall length. Do not compress simply to make the prose shorter.",
+    shorter: "Make it modestly shorter by removing repetition and unnecessary padding while keeping every important idea.",
+    longer: "Make it modestly more developed only where the existing idea benefits from clarification. Do not introduce new facts."
   };
+
   const style = styleMap[options.style] || styleMap.natural;
   const depth = depthMap[options.depth] || depthMap.balanced;
   const length = lengthMap[options.length] || lengthMap.preserve;
   let previousTail = "";
   const output = [];
   let provider = "";
+
   for (let i = 0; i < chunks.length; i++) {
-    const protectedChunk = options.preserveCitations ? humanizerProtect(chunks[i]) : {text:chunks[i],kept:[]};
-    const system = `You are VYNTRO Humanize, a careful long-form rewriting engine. Rewrite the supplied passage for ${style}. ${depth} ${length}
-Rules:
-- Return ONLY the rewritten passage, with no preface, explanation, bullets, labels or quotation marks around the answer.
-- Preserve factual meaning. Never invent facts, examples, sources, citations or claims.
-- Do not change names, numbers, dates, equations, URLs, citation markers or protected tokens.
-- Avoid repetitive sentence openings and mechanical transitions. Use natural variation in sentence length and syntax.
-- Do not force slang, mistakes, filler, fake personal experiences or unnatural "human" quirks.
-- Preserve paragraph boundaries when requested.
-- If the source is already clear, change only what genuinely improves readability.
-${options.preserveParagraphs ? "- Keep the same paragraph order and blank-line structure." : ""}
-${options.preserveCitations ? "- Protected tokens such as ⟦VYNTRO_KEEP_0⟧ must be reproduced exactly." : ""}`;
-    const context = previousTail ? `The previous section ended with: ${previousTail}\nContinue naturally without repeating it.\n\n` : "";
-    let result = await humanizerCall(env, system, context + protectedChunk.text, provider || "");
+    const protectedChunk = options.preserveCitations
+      ? humanizerProtect(chunks[i])
+      : { text: chunks[i], kept: [] };
+
+    const system = `You are VYNTRO Humanize, an advanced long-form writing editor.
+
+Rewrite the supplied source into ${style}.
+
+Editing approach:
+- ${depth}
+- ${length}
+- Preserve the author's actual meaning, facts, names, dates, numbers and level of certainty.
+- Do not invent examples, evidence, sources, quotations, statistics or personal experiences.
+- Do not deliberately insert errors, slang, filler or fake "human" quirks.
+- Prefer specific wording that follows naturally from the source instead of generic academic filler.
+- Avoid stock constructions when a simpler sentence works. In particular, do not repeatedly rely on phrases such as "it is important to note", "therefore", "moreover", "in today's world", "plays a crucial role", "it is essential", or "in conclusion" unless the source genuinely needs them.
+- Vary sentence openings and rhythm. Mix short, medium and longer sentences naturally.
+- Do not make every sentence perfectly symmetrical or equally polished.
+- Keep transitions meaningful rather than adding transition words just to connect sentences.
+- Keep first-person or impersonal voice consistent with the source; do not invent a personal voice.
+- If the source already sounds natural, preserve parts of it instead of rewriting everything.
+- Return ONLY the rewritten passage. No explanation, heading, label or preface.
+${options.preserveParagraphs ? "- Preserve the paragraph order and blank-line boundaries." : "- You may adjust paragraph boundaries when it clearly improves readability."}
+${options.preserveCitations ? "- Protected tokens such as ⟦VYNTRO_KEEP_0⟧ must be reproduced exactly and in the same logical location." : ""}`;
+
+    const context = previousTail
+      ? `The previous section ended with this excerpt:
+${previousTail}
+
+Continue from the source naturally. Do not repeat the previous section or add a new conclusion simply because this is a chunk.`
+      : "";
+
+    const result = await humanizerCall(env, system, context + (context ? "\n\n" : "") + protectedChunk.text, provider || "");
     provider = result.provider;
-    let rewritten = humanizerRestore(result.content, protectedChunk.kept);
+
+    let rewritten = humanizerRestore(result.content, protectedChunk.kept)
+      .replace(/^["“]|["”]$/g, "")
+      .trim();
+
+    // A second editorial pass is reserved for Deep mode. It is framed as
+    // an editor's pass rather than a detector-oriented transformation.
     if (options.depth === "deep") {
-      const polishSystem = `Polish this rewritten passage for ${style}. Preserve every fact and citation. Do not add information. Keep the same paragraph structure and return only the polished passage.`;
+      const polishSystem = `Act as a careful human editor. Improve the supplied rewritten passage for ${style}.
+Keep every factual claim, citation, number and quotation unchanged. Remove generic, repetitive or overly polished phrasing where it hurts natural readability. Vary sentence rhythm when useful. Do not add information. Return only the edited passage.`;
       const polished = await humanizerCall(env, polishSystem, rewritten, provider);
       provider = polished.provider;
-      rewritten = polished.content;
-      rewritten = humanizerRestore(rewritten, protectedChunk.kept);
+      rewritten = humanizerRestore(polished.content, protectedChunk.kept)
+        .replace(/^["“]|["”]$/g, "")
+        .trim();
     }
-    output.push(rewritten.trim());
-    previousTail = rewritten.trim().slice(-500);
+
+    output.push(rewritten);
+    previousTail = rewritten.slice(-700);
   }
-  return {text:output.join(options.preserveParagraphs ? "\n\n" : "\n"),chunks:chunks.length,provider};
+
+  return {
+    text: output.join(options.preserveParagraphs ? "\n\n" : "\n"),
+    chunks: chunks.length,
+    provider
+  };
 }
 
 export { UnoRoom, VyntroProfile, VyntroGlobal };
@@ -1198,42 +1234,3 @@ export default {
             telegramUserId,
             bytes,
             fileName,
-            mimeType
-          );
-          return Response.json({
-            ok: true,
-            delivered: "telegram",
-            fileName
-          });
-        }
-
-        return new Response(bytes, {
-          headers: {
-            "Content-Type": mimeType,
-            "Content-Disposition": `attachment; filename="${fileName}"`,
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*"
-          }
-        });
-      } catch (error) {
-        console.error("Export error:", error);
-        return Response.json(
-          { ok: false, error: String(error?.message || error) },
-          { status: 500 }
-        );
-      }
-    }
-
-    return env.ASSETS.fetch(request);
-  },
-
-  async scheduled(controller, env) {
-    try {
-      await ensureTelegramWebhook(env);
-      await runStatusCheck(env, controller.scheduledTime || Date.now());
-    } catch (error) {
-      console.error("VYNTRO status check failed:", error);
-      controller.noRetry();
-    }
-  }
-};
