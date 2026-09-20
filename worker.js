@@ -362,6 +362,91 @@ async function validateTelegramInitData(initData, token) {
   }
 }
 
+const ACHIEVEMENTS = {
+  first_login: { title: "Welcome to VYNTRO", icon: "👋", xp: 25 },
+  first_game: { title: "First Play", icon: "🎮", xp: 50 },
+  quiz_hero: { title: "Quiz Hero", icon: "🧠", xp: 100 },
+  snake_10: { title: "Snake Tamer", icon: "🐍", xp: 100 },
+  party_starter: { title: "Party Starter", icon: "🎉", xp: 75 }
+};
+
+function telegramUserFromInitData(initData) {
+  const params = new URLSearchParams(initData || "");
+  const raw = params.get("user");
+  if (!raw) return null;
+  try {
+    const u = JSON.parse(raw);
+    return u?.id ? u : null;
+  } catch (_) { return null; }
+}
+
+async function requireTelegramUser(request, env) {
+  const initData = request.headers.get("X-Telegram-Init-Data") || "";
+  const id = await validateTelegramInitData(initData, env?.TELEGRAM_BOT_TOKEN);
+  if (!id) return null;
+  return telegramUserFromInitData(initData);
+}
+
+class VyntroProfile extends DurableObject {
+  constructor(state, env) {
+    super(state, env);
+    this.state = state;
+  }
+
+  async load(user) {
+    let p = await this.state.storage.get("profile");
+    if (!p) {
+      p = {
+        telegramId: String(user.id),
+        firstName: user.first_name || "",
+        lastName: user.last_name || "",
+        username: user.username || "",
+        languageCode: user.language_code || "",
+        photoUrl: user.photo_url || "",
+        xp: 25,
+        level: 1,
+        gamesPlayed: 0,
+        achievements: ["first_login"],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      await this.state.storage.put("profile", p);
+    } else {
+      p.firstName = user.first_name || p.firstName;
+      p.lastName = user.last_name || p.lastName;
+      p.username = user.username || p.username;
+      p.languageCode = user.language_code || p.languageCode;
+      p.photoUrl = user.photo_url || p.photoUrl;
+      p.updatedAt = Date.now();
+      await this.state.storage.put("profile", p);
+    }
+    return p;
+  }
+
+  async fetch(request) {
+    const body = await request.json().catch(() => ({}));
+    const user = body.user;
+    if (!user?.id) return Response.json({ ok:false, error:"Missing Telegram user." }, {status:400});
+    const p = await this.load(user);
+
+    if (body.action === "award") {
+      const key = String(body.achievement || "");
+      const a = ACHIEVEMENTS[key];
+      if (!a) return Response.json({ok:false,error:"Unknown achievement."},{status:400});
+      if (!p.achievements.includes(key)) {
+        p.achievements.push(key);
+        p.xp += a.xp;
+        p.gamesPlayed += key === "first_game" ? 1 : 0;
+        p.level = Math.floor(p.xp / 250) + 1;
+        p.updatedAt = Date.now();
+        await this.state.storage.put("profile", p);
+      }
+    }
+
+    return Response.json({ok:true,profile:p,achievements:ACHIEVEMENTS});
+  }
+}
+
 const UNO_COLORS = ["red", "yellow", "green", "blue"];
 const UNO_VALUES = ["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2"];
 
@@ -765,6 +850,24 @@ export default {
       const id=env.UNO_ROOM_DO.idFromName(String(body.code).toUpperCase());
       const stub=env.UNO_ROOM_DO.get(id);
       return stub.fetch("https://uno/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,playerId,action:body.action})});
+    }
+
+    if (url.pathname === "/api/profile" && request.method === "GET") {
+      const user = await requireTelegramUser(request, env);
+      if (!user) return Response.json({ok:false,error:"Telegram authentication required."},{status:401});
+      const id = env.VYNTRO_PROFILE_DO.idFromName(String(user.id));
+      const stub = env.VYNTRO_PROFILE_DO.get(id);
+      const response = await stub.fetch("https://profile/", {method:"POST",body:JSON.stringify({user})});
+      return response;
+    }
+
+    if (url.pathname === "/api/achievement" && request.method === "POST") {
+      const user = await requireTelegramUser(request, env);
+      if (!user) return Response.json({ok:false,error:"Telegram authentication required."},{status:401});
+      const body = await request.json().catch(() => ({}));
+      const id = env.VYNTRO_PROFILE_DO.idFromName(String(user.id));
+      const stub = env.VYNTRO_PROFILE_DO.get(id);
+      return stub.fetch("https://profile/", {method:"POST",body:JSON.stringify({user,action:"award",achievement:body.achievement})});
     }
 
     if (url.pathname === "/api/ai" && request.method === "POST") {
