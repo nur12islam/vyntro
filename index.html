@@ -47,11 +47,13 @@ button{width:100%;border:0;border-radius:14px;padding:11px 13px;background:#f3f3
 <div class="section-title">Games</div>
 <section class="grid">
 <article class="card openable" id="unoCard"><div class="icon">🃏</div><h2>UNO</h2><p>Play a modern 4-player UNO match with friends.</p><button id="uno">🎴 Play UNO</button></article>
-<article class="card"><div class="icon">🧩</div><h2>Arcade</h2><p>Small games and challenges will live here.</p><button class="soon" disabled>Coming Soon</button></article>
+<article class="card openable" id="snakeCard"><div class="icon">🐍</div><h2>Snake</h2><p>Classic arcade snake with touch controls.</p><button id="snake">Play</button></article>
+<article class="card openable" id="game2048Card"><div class="icon">🔢</div><h2>2048</h2><p>Merge tiles, build combos and reach 2048.</p><button id="game2048">Play</button></article>
+<article class="card openable" id="tttCard"><div class="icon">❌⭕</div><h2>Tic-Tac-Toe</h2><p>Quick rounds against CPU or another player.</p><button id="ttt">Play</button></article>
 </section>
 <div class="section-title">Activities</div>
-<section class="grid"><article class="card"><div class="icon">🧠</div><h2>Quizzes</h2><p>Interactive quizzes and challenges.</p><button class="soon" disabled>Coming Soon</button></article><article class="card"><div class="icon">🎡</div><h2>Fun</h2><p>Wheels, dice and social activities.</p><button class="soon" disabled>Coming Soon</button></article></section>
-<div class="status" id="status">VYNTRO v0.2 • Online</div><div class="nav-note">Built for Telegram • More tools are coming.</div>
+<section class="grid"><article class="card openable" id="quizCard"><div class="icon">🧠</div><h2>Quiz Arena</h2><p>AI-generated quizzes powered by Groq or OpenRouter.</p><button id="quiz">⚡ Enter Arena</button></article><article class="card"><div class="icon">🎡</div><h2>Fun</h2><p>Wheels, dice and social activities.</p><button class="soon" disabled>Coming Soon</button></article></section>
+<div class="status" id="status">VYNTRO v0.3 • Online</div><div class="nav-note">Built for Telegram • More tools are coming.</div>
 </main>
 <script>
 const tg=window.Telegram?.WebApp;
@@ -68,6 +70,14 @@ if(tg){
 document.querySelector("#report").onclick=()=>{tg?.HapticFeedback?.impactOccurred("light");location.href="./utilities/report-writer/"}
 document.querySelector("#uno").onclick=()=>{tg?.HapticFeedback?.impactOccurred("medium");location.href="./games/uno/"};
 document.querySelector("#unoCard").onclick=(e)=>{if(e.target.closest("button"))return;tg?.HapticFeedback?.impactOccurred("light");location.href="./games/uno/"};
+document.querySelector("#snake").onclick=()=>{tg?.HapticFeedback?.impactOccurred("light");location.href="./games/snake/"};
+document.querySelector("#snakeCard").onclick=(e)=>{if(e.target.closest("button"))return;location.href="./games/snake/"};
+document.querySelector("#game2048").onclick=()=>{tg?.HapticFeedback?.impactOccurred("light");location.href="./games/2048/"};
+document.querySelector("#game2048Card").onclick=(e)=>{if(e.target.closest("button"))return;location.href="./games/2048/"};
+document.querySelector("#ttt").onclick=()=>{tg?.HapticFeedback?.impactOccurred("light");location.href="./games/tic-tac-toe/"};
+document.querySelector("#tttCard").onclick=(e)=>{if(e.target.closest("button"))return;location.href="./games/tic-tac-toe/"};
+document.querySelector("#quiz").onclick=()=>{tg?.HapticFeedback?.impactOccurred("medium");location.href="./activities/quiz-arena/"};
+document.querySelector("#quizCard").onclick=(e)=>{if(e.target.closest("button"))return;location.href="./activities/quiz-arena/"};
 
 </script>
 </body>
