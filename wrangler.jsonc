@@ -1,6 +1,7 @@
 {
   "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
   "name": "vyntro",
+  "main": "worker.js",
   "compatibility_date": "2026-09-20",
   "assets": {
     "directory": "."
