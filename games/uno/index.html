@@ -51,34 +51,107 @@ button{font:inherit}.app{max-width:980px;margin:auto;padding:14px 15px calc(28px
 </main>
 <div class="overlay" id="overlay"><div class="modal"><h2>Choose a colour</h2><p>Wild card played. Pick the next colour.</p><div class="colors"><button class="red" data-color="red">Red</button><button class="yellow" data-color="yellow">Yellow</button><button class="green" data-color="green">Green</button><button class="blue" data-color="blue">Blue</button></div></div></div>
 <script>
-const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand()}
-const colors=["red","yellow","green","blue"],values=["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2"];
-let deck=[],hand=[],discard=null,currentColor=null,locked=false,score=0;
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand()}
+const initData=tg?.initData||"";
+const me=tg?.initDataUnsafe?.user||{id:"guest-"+Math.random().toString(36).slice(2),first_name:"Player"};
+const colors=["red","yellow","green","blue"];
+let game=null, code=new URLSearchParams(location.search).get("room")?.toUpperCase()||"", pollTimer=null, pendingWild=false;
 const $=id=>document.getElementById(id);
-function makeDeck(){let d=[];colors.forEach(c=>values.forEach(v=>{d.push({c,v});if(v!=="0")d.push({c,v})}));for(let i=0;i<4;i++){d.push({c:"wild",v:"wild"},{c:"wild",v:"+4"})}return d}
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function label(v){return v==="skip"?"⊘":v==="reverse"?"↔":v==="+2"?"＋2":v==="+4"?"＋4":v==="wild"?"✦":v}
-function cardEl(c,click=false){const e=document.createElement("div");e.className="card "+c.c+(click?"":" small");const s=document.createElement("span");s.textContent=label(c.v);e.appendChild(s);return e}
-function playable(c){return c.c==="wild"||c.c===currentColor||c.v===discard.v}
-function render(){
- $("discard").innerHTML="";$("discard").appendChild(cardEl(discard));
- $("hand").innerHTML="";
- hand.forEach((c,i)=>{const e=cardEl(c,true);if(locked||!playable(c))e.classList.add("disabled");e.onclick=()=>play(i);$("hand").appendChild(e)});
- $("score").textContent=score+" pts";$("turn").textContent=locked?"Waiting for other players…":"Tap a playable card";
- $("status").textContent=locked?"OPPONENT TURN":"YOUR TURN";
- $("c0").textContent=hand.length+" cards";
+const name=()=>String(me.first_name||"Player").slice(0,24);
+async function api(path,body){
+ const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,telegramInitData:initData,name:name()})});
+ const j=await r.json().catch(()=>({ok:false,error:"Server error"}));
+ if(!r.ok||j.ok===false) throw new Error(j.error||"Request failed");
+ return j;
 }
-function start(){deck=shuffle(makeDeck());hand=deck.splice(0,7);discard=deck.pop();while(discard.c==="wild"){deck.unshift(discard);discard=deck.pop()}currentColor=discard.c;locked=false;render()}
-function play(i){if(locked)return;const c=hand[i];if(!playable(c))return;hand.splice(i,1);discard=c;currentColor=c.c==="wild"?null:c.c;tg?.HapticFeedback?.impactOccurred("light");if(!hand.length){score+=100;toast("🎉 You won!");setTimeout(start,900);return}score+=c.v==="+2"?20:10;if(c.c==="wild"){locked=true;$("overlay").style.display="flex"}render();if(c.c!=="wild")setTimeout(cpuTurn,550)}
-function chooseColor(c){currentColor=c;$("overlay").style.display="none";locked=false;render();setTimeout(cpuTurn,450)}
+function toast(t){$("toast").textContent=t;setTimeout(()=>{$("toast").textContent=""},2200)}
+function label(v){return v==="skip"?"⊘":v==="reverse"?"↔":v==="+2"?"＋2":v==="+4"?"＋4":v==="wild"?"✦":v}
+function cardEl(c,click=false){
+ const e=document.createElement("div");e.className="card "+c.c+(click?"":" small");
+ const s=document.createElement("span");s.textContent=label(c.v);e.appendChild(s);return e;
+}
+function render(){
+ if(!game)return;
+ $("score").textContent=(game.winner===game.you?"WIN":"UNO");
+ $("room").textContent="ROOM • "+game.code;
+ $("status").textContent=game.winner!==null?"GAME OVER":game.turn===game.you?"YOUR TURN":"OPPONENT TURN";
+ $("turn").textContent=game.winner!==null?(game.winner===game.you?"🎉 You won!":"Game finished"):(game.turn===game.you?"Tap a playable card":"Waiting for the next player…");
+ const ps=game.players||[];
+ for(let i=0;i<4;i++){
+   const p=ps[i],el=document.querySelectorAll(".player")[i];
+   el.classList.toggle("active",!!p&&i===game.turn);
+   $("p"+i).textContent=p?.name||"Waiting…";
+   $("c"+i).textContent=p?(p.cards+" cards"):"—";
+ }
+ $("p0").textContent="You";
+ const discard=$("discard");discard.innerHTML="";if(game.discard)discard.appendChild(cardEl(game.discard));
+ const hand=$("hand");hand.innerHTML="";
+ (game.yourHand||[]).forEach((c,i)=>{
+   const e=cardEl(c,true);
+   const playable=c.c==="wild"||c.c===game.currentColor||c.v===game.discard?.v;
+   if(game.turn!==game.you||!playable||game.winner!==null)e.classList.add("disabled");
+   e.onclick=()=>playCard(i,c);hand.appendChild(e);
+ });
+}
+async function createRoom(){
+ try{
+   const j=await api("/api/uno/create",{});
+   game=j.game;code=game.code;
+   history.replaceState(null,"","?room="+code);
+   toast("🎴 Room "+code+" created — invite 3 friends.");
+   render();startPolling();
+ }catch(err){toast("⚠️ "+err.message)}
+}
+async function joinRoom(){
+ if(!code){code=prompt("Enter the 5-character UNO room code:")?.trim().toUpperCase()||""}
+ if(!code)return;
+ try{
+   const j=await api("/api/uno/join",{code});game=j.game;
+   history.replaceState(null,"","?room="+code);render();startPolling();
+   toast(game.players.length<4?"Waiting for players…":"Game started!");
+ }catch(err){toast("⚠️ "+err.message)}
+}
+async function state(){
+ if(!code)return;
+ try{const j=await api("/api/uno/action",{action:"state",code});game=j.game;render()}catch(_){}
+}
+function startPolling(){clearInterval(pollTimer);pollTimer=setInterval(state,900)}
+async function playCard(i,c){
+ if(game.turn!==game.you)return;
+ if(c.c==="wild"){
+   pendingWild=i;$("overlay").style.display="flex";return;
+ }
+ await action({action:"play",cardIndex:i});
+}
+async function chooseColor(color){
+ $("overlay").style.display="none";
+ if(pendingWild===false||pendingWild===null)return;
+ const i=pendingWild;pendingWild=false;
+ await action({action:"play",cardIndex:i,color});
+}
+async function action(body){
+ try{
+   const j=await api("/api/uno/action",{code,...body});game=j.game;
+   tg?.HapticFeedback?.impactOccurred("light");render();
+ }catch(err){toast("⚠️ "+err.message)}
+}
 document.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>chooseColor(b.dataset.color));
-function cpuTurn(){if(!hand.length)return;locked=true;render();setTimeout(()=>{const candidates=hand.filter(c=>c.c===currentColor||c.c==="wild"||c.v===discard.v);if(candidates.length){const c=candidates[Math.floor(Math.random()*candidates.length)];discard=c;currentColor=c.c==="wild"?colors[Math.floor(Math.random()*4)]:c.c;toast("Opponent played "+label(c.v))}else toast("Opponent drew a card");locked=false;render()},500)}
-function drawCard(){if(locked)return;const c=deck.pop();if(!c){toast("Deck empty");return}hand.push(c);toast(playable(c)?"Playable card drawn":"Card drawn");render()}
-function toast(t){$("toast").textContent=t;setTimeout(()=>{$("toast").textContent=""},1800)}
-$("drawBtn").onclick=drawCard;$("newBtn").onclick=start;$("unoBtn").onclick=()=>{if(hand.length===1){score+=5;toast("🔥 UNO!")}else toast("UNO is called with one card left.")};
-$("createBtn").onclick=()=>toast("👥 Multiplayer lobby coming next — 4 players max.");
-$("inviteBtn").onclick=()=>{if(tg?.switchInlineQuery){tg.switchInlineQuery("Join my VYNTRO UNO game 🎴")}else if(navigator.share){navigator.share({title:"VYNTRO UNO",text:"Join my UNO game in VYNTRO."}).catch(()=>{})}else toast("Open VYNTRO from Telegram to invite players.")};
-start();
+$("drawBtn").onclick=()=>action({action:"draw"});
+$("unoBtn").onclick=()=>action({action:"uno"});
+$("newBtn").onclick=()=>{code="";game=null;clearInterval(pollTimer);history.replaceState(null,"",location.pathname);location.reload()};
+$("createBtn").onclick=createRoom;
+$("inviteBtn").onclick=async()=>{
+ if(!code){toast("Create a room first.");return}
+ const text="Join my VYNTRO UNO game 🎴 Room: "+code;
+ if(navigator.share){try{await navigator.share({title:"VYNTRO UNO",text})}catch(_){}}
+ else if(navigator.clipboard){await navigator.clipboard.writeText(text);toast("Invite copied: "+code)}
+ else toast("Send room code "+code+" to your friends.");
+};
+(async()=>{
+ $("p0").textContent=name();
+ if(code){try{const j=await api("/api/uno/join",{code});game=j.game;render();startPolling();}catch(err){toast("⚠️ "+err.message)}}
+})();
 </script>
 </body>
 </html>
