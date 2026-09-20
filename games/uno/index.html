@@ -56,7 +56,7 @@ if(tg){tg.ready();tg.expand()}
 const initData=tg?.initData||"";
 const me=tg?.initDataUnsafe?.user||{id:"guest-"+Math.random().toString(36).slice(2),first_name:"Player"};
 const colors=["red","yellow","green","blue"];
-let game=null, code=new URLSearchParams(location.search).get("room")?.toUpperCase()||"", pollTimer=null, pendingWild=false;
+let game=null, code=new URLSearchParams(location.search).get("room")?.toUpperCase()||"", pollTimer=null, socket=null, pendingWild=false;
 const $=id=>document.getElementById(id);
 const name=()=>String(me.first_name||"Player").slice(0,24);
 async function api(path,body){
@@ -100,7 +100,7 @@ async function createRoom(){
    game=j.game;code=game.code;
    history.replaceState(null,"","?room="+code);
    toast("🎴 Room "+code+" created — invite 3 friends.");
-   render();startPolling();
+   render();connectRealtime();startPolling();
  }catch(err){toast("⚠️ "+err.message)}
 }
 async function joinRoom(){
@@ -108,7 +108,7 @@ async function joinRoom(){
  if(!code)return;
  try{
    const j=await api("/api/uno/join",{code});game=j.game;
-   history.replaceState(null,"","?room="+code);render();startPolling();
+   history.replaceState(null,"","?room="+code);render();connectRealtime();startPolling();
    toast(game.players.length<4?"Waiting for players…":"Game started!");
  }catch(err){toast("⚠️ "+err.message)}
 }
@@ -116,7 +116,25 @@ async function state(){
  if(!code)return;
  try{const j=await api("/api/uno/action",{action:"state",code});game=j.game;render()}catch(_){}
 }
-function startPolling(){clearInterval(pollTimer);pollTimer=setInterval(state,900)}
+function startPolling(){
+ clearInterval(pollTimer);
+ pollTimer=setInterval(state,2500);
+}
+function connectRealtime(){
+ if(socket) try{socket.close()}catch(_){}
+ if(!code||!initData)return;
+ const protocol=location.protocol==="https:"?"wss":"ws";
+ socket=new WebSocket(protocol+"://"+location.host+"/api/uno/ws?code="+encodeURIComponent(code)+"&initData="+encodeURIComponent(initData));
+ socket.onopen=()=>{toast("🟢 Live table connected");clearInterval(pollTimer)};
+ socket.onmessage=(event)=>{
+   try{
+     const msg=JSON.parse(event.data);
+     if(msg.type==="state"&&msg.game){game=msg.game;render()}
+   }catch(_){}
+ };
+ socket.onclose=()=>{socket=null;startPolling()};
+ socket.onerror=()=>{try{socket?.close()}catch(_){}};
+}
 async function playCard(i,c){
  if(game.turn!==game.you)return;
  if(c.c==="wild"){
@@ -139,7 +157,7 @@ async function action(body){
 document.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>chooseColor(b.dataset.color));
 $("drawBtn").onclick=()=>action({action:"draw"});
 $("unoBtn").onclick=()=>action({action:"uno"});
-$("newBtn").onclick=()=>{code="";game=null;clearInterval(pollTimer);history.replaceState(null,"",location.pathname);location.reload()};
+$("newBtn").onclick=()=>{code="";game=null;clearInterval(pollTimer);try{socket?.close()}catch(_){}history.replaceState(null,"",location.pathname);location.reload()};
 $("createBtn").onclick=createRoom;
 $("inviteBtn").onclick=async()=>{
  if(!code){toast("Create a room first.");return}
@@ -155,7 +173,7 @@ $("inviteBtn").onclick=async()=>{
 };
 (async()=>{
  $("p0").textContent=name();
- if(code){try{const j=await api("/api/uno/join",{code});game=j.game;render();startPolling();}catch(err){toast("⚠️ "+err.message)}}
+ if(code){try{const j=await api("/api/uno/join",{code});game=j.game;render();connectRealtime();startPolling();}catch(err){toast("⚠️ "+err.message)}}
 })();
 </script>
 </body>
