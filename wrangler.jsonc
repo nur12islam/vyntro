@@ -9,7 +9,8 @@
   "durable_objects": {
     "bindings": [
       { "name": "UNO_ROOM_DO", "class_name": "UnoRoom" },
-      { "name": "VYNTRO_PROFILE_DO", "class_name": "VyntroProfile" }
+      { "name": "VYNTRO_PROFILE_DO", "class_name": "VyntroProfile" },
+      { "name": "VYNTRO_GLOBAL_DO", "class_name": "VyntroGlobal" }
     ]
   },
   "migrations": [
