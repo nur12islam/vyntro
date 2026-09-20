@@ -1,0 +1,9 @@
+{
+  "name": "vyntro",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "docx": "^9.5.1",
+    "pdf-lib": "^1.17.1"
+  }
+}
