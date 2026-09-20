@@ -39,85 +39,46 @@ button{width:100%;border:0;border-radius:14px;padding:11px 13px;background:#f3f3
 <style>
 .top-title{font-weight:800;letter-spacing:.08em;color:#aaa}.category-card{padding:16px;border:1px solid #ffffff14;border-radius:28px;background:#ffffff04;margin-bottom:20px}.category-head{padding:4px 4px 15px}.category-head h2{display:inline-block;margin:0 0 5px 8px;font-size:23px;vertical-align:middle}.category-head p{margin:4px 0 0 43px;color:#777;font-size:13px}.category-icon{font-size:27px;vertical-align:middle}.category-card .grid{gap:10px}.category-card .card{min-height:175px;padding:16px;border-radius:20px}.category-card .card h3{font-size:18px;margin:12px 0 5px}.category-card .card p{min-height:38px}.use{border-color:#ffffff16}.play{border-color:#ffffff1c}.fun{border-color:#ffffff16}.social{border-color:#ffffff1a}.puzzle{border-color:#ffffff16}.home-footer{text-align:center;color:#777;font-size:12px;margin:28px 0 6px}.home-footer small{display:block;margin-top:6px;color:#555}.soon{background:#ffffff08!important;color:#666!important;cursor:default!important}
 </style></head><main class="app">
-<div class="topbar"><div class="brandmark">V</div><div class="top-title">VYNTRO</div></div>
+<div class="topbar"><div class="brandmark">V</div><div class="profile"><span class="avatar" id="avatar">V</span><span id="profileName">VYNTRO</span></div></div>
+<section class="profileCard" id="profileCard"><div class="profileBig" id="profileAvatar">V</div><div class="profileInfo"><strong id="profileTitle">Telegram profile</strong><small id="profileHandle">XP, achievements & stats</small></div><div class="xp" id="xp">XP 0<br>Lv 1</div></section>
 <section class="hero"><div class="eyebrow">VYNTRO</div><h1>Create. Play. Explore.</h1><p>Your entertainment universe inside Telegram.</p></section>
 
-<div class="section-title">🛠️ USE</div>
-<section class="category-card use"><div class="category-head"><div><span class="category-icon">🛠️</span><h2>Utilities</h2><p>Tools that help you create and get things done.</p></div></div>
-<div class="grid">
-<article class="card openable" id="reportCard"><div class="icon">📝</div><h3>Report Writer</h3><p>Build structured academic reports with an A4-ready preview.</p><button id="report">Open</button></article>
-<article class="card openable"><div class="icon">📄</div><h3>PDF Tools</h3><p>PDF utilities and document tools.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card openable"><div class="icon">📓</div><h3>Notes</h3><p>Create and manage quick notes.</p><button class="soon" disabled>Coming Soon</button></article>
-</div></section>
+<section class="home-menu">
+<article class="menu-card utilities" id="utilities"><div class="menu-icon">🛠️</div><div><h2>Utilities</h2><p>Tools for creating, writing and managing documents.</p><span>Explore utilities →</span></div></article>
+<article class="menu-card games" id="games"><div class="menu-icon">🎮</div><div><h2>Games</h2><p>UNO, Snake, 2048, Tic-Tac-Toe and more.</p><span>Explore games →</span></div></article>
+<article class="menu-card fun" id="fun"><div class="menu-icon">🎉</div><div><h2>Fun</h2><p>Random challenges, social activities and things to do.</p><span>Explore fun →</span></div></article>
+<article class="menu-card activities" id="activities"><div class="menu-icon">🎯</div><div><h2>Activities</h2><p>Quizzes, wheels, dice and interactive challenges.</p><span>Explore activities →</span></div></article>
+<article class="menu-card social" id="social"><div class="menu-icon">👥</div><div><h2>Social & Party</h2><p>Party games, multiplayer rooms and group chaos.</p><span>Explore social →</span></div></article>
+<article class="menu-card puzzles" id="puzzles"><div class="menu-icon">🧩</div><div><h2>Puzzles</h2><p>Short brain games, reaction tests and word challenges.</p><span>Explore puzzles →</span></div></article>
+</section>
 
-<div class="section-title">🎮 PLAY</div>
-<section class="category-card play"><div class="category-head"><div><span class="category-icon">🎮</span><h2>Games</h2><p>Quick arcade games and multiplayer battles.</p></div></div>
-<div class="grid">
-<article class="card openable" id="unoCard"><div class="icon">🃏</div><h3>UNO</h3><p>4-player UNO with Telegram invites.</p><button id="uno">🎴 Play</button></article>
-<article class="card openable" id="snakeCard"><div class="icon">🐍</div><h3>Snake</h3><p>Classic arcade snake with joystick controls.</p><button id="snake">Play</button></article>
-<article class="card openable" id="game2048Card"><div class="icon">🔢</div><h3>2048</h3><p>Merge tiles and chase your high score.</p><button id="game2048">Play</button></article>
-<article class="card openable" id="tttCard"><div class="icon">❌⭕</div><h3>Tic-Tac-Toe</h3><p>CPU or two-player quick matches.</p><button id="ttt">Play</button></article>
-<article class="card"><div class="icon">♟️</div><h3>Ludo</h3><p>2–4 player room-based board game.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card"><div class="icon">♟️</div><h3>Chess</h3><p>Online PvP, CPU and timed matches.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card"><div class="icon">💣</div><h3>Minesweeper</h3><p>Fast classic mine-clearing challenge.</p><button class="soon" disabled>Coming Soon</button></article>
-</div></section>
+<section class="bottom-links">
+<a href="./profile/" class="small-link">👤 Profile & Stats</a>
+<a href="./leaderboard/" class="small-link">🏆 Leaderboard</a>
+</section>
 
-<div class="section-title">🎉 FUN</div>
-<section class="category-card fun"><div class="category-head"><div><span class="category-icon">🎉</span><h2>Activities</h2><p>Random, social and party-friendly things to do.</p></div></div>
-<div class="grid">
-<article class="card openable" id="quizCard"><div class="icon">🧠</div><h3>Quiz Arena</h3><p>General knowledge, literature, science and more.</p><button id="quiz">⚡ Play</button></article>
-<article class="card openable"><div class="icon">🎡</div><h3>Spin Wheel</h3><p>Make a custom wheel and let fate decide.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card openable"><div class="icon">🎲</div><h3>Dice</h3><p>1d6, 2d6, 1d20 and custom rolls.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card openable" id="wyrCard"><div class="icon">🤔</div><h3>Would You Rather</h3><p>Vote, reveal the result and argue with friends.</p><button id="wyr">Open</button></article>
-<article class="card openable" id="todCard"><div class="icon">😈</div><h3>Truth or Dare</h3><p>Friends, couples, party and chaotic modes.</p><button id="tod">Open</button></article>
-<article class="card openable"><div class="icon">🕵️</div><h3>Who Am I?</h3><p>Guess the hidden identity with questions.</p><button class="soon" disabled>Coming Soon</button></article>
-</div></section>
-
-<div class="section-title">👥 SOCIAL</div>
-<section class="category-card social"><div class="category-head"><div><span class="category-icon">👥</span><h2>Party & Multiplayer</h2><p>Play together, pass the phone or join a room.</p></div></div>
-<div class="grid">
-<article class="card openable" id="partyCard"><div class="icon">🎉</div><h3>Party Hub</h3><p>Spy, Mafia, Charades, Hot Seat and more.</p><button id="party">🎉 Open Party</button></article>
-<article class="card"><div class="icon">🕵️</div><h3>Spy Game</h3><p>Everyone knows the location except the spy.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card"><div class="icon">🐺</div><h3>Mafia / Werewolf</h3><p>4–10 player hidden-role social game.</p><button class="soon" disabled>Coming Soon</button></article>
-<article class="card"><div class="icon">🔤</div><h3>Word Chain</h3><p>Keep the chain alive or get eliminated.</p><button class="soon" disabled>Coming Soon</button></article>
-</div></section>
-
-<div class="section-title">🧩 PUZZLE</div>
-<section class="category-card puzzle"><div class="category-head"><div><span class="category-icon">🧩</span><h2>Mini Puzzles</h2><p>30-second to 3-minute brain and reaction challenges.</p></div></div>
-<div class="grid">
-<article class="card openable" id="puzzleCard"><div class="icon">🧩</div><h3>Puzzle Hub</h3><p>Memory Match, Reaction Test, Number Rush and Word Scramble.</p><button id="puzzles">Open</button></article>
-<article class="card"><div class="icon">🧠</div><h3>Memory Match</h3><p>Flip cards and match every pair.</p><button class="soon" disabled>In Puzzle Hub</button></article>
-<article class="card"><div class="icon">⚡</div><h3>Reaction Test</h3><p>Wait for the signal and tap as fast as possible.</p><button class="soon" disabled>In Puzzle Hub</button></article>
-<article class="card"><div class="icon">🔢</div><h3>Number Rush</h3><p>Find the numbers before time runs out.</p><button class="soon" disabled>In Puzzle Hub</button></article>
-<article class="card"><div class="icon">🔤</div><h3>Word Scramble</h3><p>Unscramble the word before the clock wins.</p><button class="soon" disabled>In Puzzle Hub</button></article>
-</div></section>
-
-<div class="home-footer"><div>🤖 VYNTRO AI · 👤 Profile · 🏆 Stats</div><small>Available from their dedicated pages • VYNTRO v0.5</small></div>
+<section class="ai-home" id="aiCard">
+<div><div class="ai-icon">🤖</div><div><h2>VYNTRO AI</h2><p>Your little AI companion for finding something to do.</p></div></div>
+<button id="aiBtn">✨ Open AI</button>
+</section>
 <div class="status" id="status">VYNTRO v0.5 • Online</div>
+<div class="nav-note">Built for Telegram • Create. Play. Explore. 🚀</div>
 </main>
-<script>
+<style>
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.brandmark{width:42px;height:42px;border:1px solid var(--line);border-radius:15px;background:#ffffff0b;display:grid;place-items:center;font-weight:800}.profile{display:flex;align-items:center;gap:9px;padding:7px 11px 7px 8px;border:1px solid var(--line);border-radius:999px;background:#ffffff08;color:#ddd;font-size:12px}.avatar{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#111;font-weight:800}.profileCard{margin:8px 0 25px;padding:14px 16px;border:1px solid var(--line);border-radius:22px;background:var(--card);display:flex;align-items:center;gap:12px;cursor:pointer}.profileBig{width:46px;height:46px;border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;font-weight:900;overflow:hidden}.profileBig img{width:100%;height:100%;object-fit:cover}.profileInfo{min-width:0;flex:1}.profileInfo strong{display:block}.profileInfo small{display:block;color:#888;margin-top:3px}.xp{font-size:11px;color:#aaa;text-align:right}.home-menu{display:grid;gap:12px;margin-top:8px}.menu-card{display:flex;align-items:center;gap:17px;padding:19px;border:1px solid var(--line);border-radius:23px;background:var(--card);backdrop-filter:blur(22px);cursor:pointer;transition:.2s}.menu-card:active{transform:scale(.985)}.menu-card:hover{border-color:#ffffff2b;background:#ffffff0a}.menu-icon{width:54px;height:54px;flex:0 0 54px;border-radius:17px;background:#ffffff0a;border:1px solid #ffffff12;display:grid;place-items:center;font-size:28px}.menu-card h2{margin:0 0 5px;font-size:20px}.menu-card p{margin:0 0 7px;color:#999;font-size:13px;line-height:1.4}.menu-card span{font-size:11px;color:#ddd}.utilities{border-color:#ffffff16}.games{border-color:#ffffff20}.fun{border-color:#ffffff18}.activities{border-color:#ffffff16}.social{border-color:#ffffff1d}.puzzles{border-color:#ffffff16}.bottom-links{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.small-link{padding:13px;text-align:center;text-decoration:none;color:#aaa;border:1px solid #ffffff12;border-radius:15px;background:#ffffff06;font-size:12px}.ai-home{margin-top:28px;padding:18px;border:1px solid #ffffff20;border-radius:24px;background:linear-gradient(135deg,#ffffff0b,#ffffff04);display:flex;align-items:center;justify-content:space-between;gap:15px}.ai-home>div{display:flex;align-items:center;gap:12px}.ai-icon{font-size:30px}.ai-home h2{font-size:18px;margin:0 0 4px}.ai-home p{margin:0;color:#888;font-size:12px}.ai-home button{width:auto;white-space:nowrap}.status{text-align:center;color:#666;font-size:11px;margin-top:22px}.nav-note{text-align:center;color:#555;font-size:11px;margin-top:8px}
+@media(max-width:520px){.ai-home{display:block}.ai-home button{width:100%;margin-top:14px}.bottom-links{grid-template-columns:1fr 1fr}.hero h1{font-size:38px}}
+</style><script>
 const tg=window.Telegram?.WebApp;
-if(tg){tg.ready();tg.expand();const startParam=tg.initDataUnsafe?.start_param||"";if(startParam.startsWith("uno_")){const room=startParam.slice(4).toUpperCase();if(/^[A-Z2-9]{5}$/.test(room))location.replace("./games/uno/?room="+room)}}
-const go=(id,path,haptic="light")=>{document.querySelector(id)?.addEventListener("click",e=>{if(e.target.closest("button")===null&&e.currentTarget.classList.contains("openable")===false)return;tg?.HapticFeedback?.impactOccurred(haptic);location.href=path})};
-document.querySelector("#report").onclick=()=>location.href="./utilities/report-writer/";
-document.querySelector("#uno").onclick=()=>location.href="./games/uno/";
-document.querySelector("#snake").onclick=()=>location.href="./games/snake/";
-document.querySelector("#game2048").onclick=()=>location.href="./games/2048/";
-document.querySelector("#ttt").onclick=()=>location.href="./games/tic-tac-toe/";
-document.querySelector("#quiz").onclick=()=>location.href="./activities/quiz-arena/";
-document.querySelector("#party").onclick=()=>location.href="./party/";
-document.querySelector("#puzzles").onclick=()=>location.href="./puzzles/";
-document.querySelector("#wyr").onclick=()=>location.href="./activities/would-you-rather/";
-document.querySelector("#tod").onclick=()=>location.href="./party/";
-document.querySelector("#wyrCard").onclick=e=>{if(!e.target.closest("button"))location.href="./activities/would-you-rather/"};
-document.querySelector("#reportCard").onclick=e=>{if(!e.target.closest("button"))location.href="./utilities/report-writer/"};
-document.querySelector("#unoCard").onclick=e=>{if(!e.target.closest("button"))location.href="./games/uno/"};
-document.querySelector("#snakeCard").onclick=e=>{if(!e.target.closest("button"))location.href="./games/snake/"};
-document.querySelector("#game2048Card").onclick=e=>{if(!e.target.closest("button"))location.href="./games/2048/"};
-document.querySelector("#tttCard").onclick=e=>{if(!e.target.closest("button"))location.href="./games/tic-tac-toe/"};
-document.querySelector("#quizCard").onclick=e=>{if(!e.target.closest("button"))location.href="./activities/quiz-arena/"};
-document.querySelector("#partyCard").onclick=e=>{if(!e.target.closest("button"))location.href="./party/"};
-document.querySelector("#puzzleCard").onclick=e=>{if(!e.target.closest("button"))location.href="./puzzles/"};
-document.querySelector("#todCard").onclick=e=>{if(!e.target.closest("button"))location.href="./party/"};
+if(tg){tg.ready();tg.expand();const u=tg.initDataUnsafe?.user;if(u){document.querySelector("#profileName").textContent=u.first_name||"Telegram";document.querySelector("#status").textContent="VYNTRO v0.5 • "+(u.first_name||"Telegram user")}const startParam=tg.initDataUnsafe?.start_param||"";if(startParam.startsWith("uno_")){const room=startParam.slice(4).toUpperCase();if(/^[A-Z2-9]{5}$/.test(room))location.replace("./games/uno/?room="+room)}}
+async function syncProfile(){if(!tg?.initData)return;try{const r=await fetch("/api/profile",{headers:{"X-Telegram-Init-Data":tg.initData}});const d=await r.json();if(!d.ok)return;const p=d.profile;document.querySelector("#profileTitle").textContent=p.firstName||"Telegram profile";document.querySelector("#profileHandle").textContent=p.username?"@"+p.username+" · "+(p.streak||0)+" day streak":"XP, achievements & stats";document.querySelector("#xp").innerHTML="XP "+p.xp+"<br>Lv "+p.level;if(p.photoUrl){document.querySelector("#profileAvatar").innerHTML='<img src="'+p.photoUrl+'" alt="">';document.querySelector("#avatar").innerHTML='<img src="'+p.photoUrl+'" style="width:100%;height:100%;border-radius:50%" alt="">'}else{const n=(p.firstName||"V").slice(0,1).toUpperCase();document.querySelector("#profileAvatar").textContent=n;document.querySelector("#avatar").textContent=n}}catch(_){}}
+syncProfile();
+const go=p=>location.href=p;
+document.querySelector("#profileCard").onclick=()=>go("./profile/");
+document.querySelector("#utilities").onclick=()=>go("./utilities/");
+document.querySelector("#games").onclick=()=>go("./games/");
+document.querySelector("#fun").onclick=()=>go("./party/");
+document.querySelector("#activities").onclick=()=>go("./activities/");
+document.querySelector("#social").onclick=()=>go("./party/");
+document.querySelector("#puzzles").onclick=()=>go("./puzzles/");
+document.querySelector("#aiBtn").onclick=()=>go("./ai/");
 </script>
-</body></html>
