@@ -579,7 +579,9 @@ async function makeDOCX(data) {
   return Packer.toBlob(doc);
 }
 
-export { UnoRoom };\n\nexport default {
+export { UnoRoom };
+
+export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
