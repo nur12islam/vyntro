@@ -7,35 +7,45 @@
 <title>VYNTRO • UNO</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{color-scheme:dark;--bg:#070707;--glass:#ffffff0b;--line:#ffffff18;--text:#f7f7f7;--muted:#929292}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#242424,transparent 42%),#070707;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
-.app{max-width:900px;margin:auto;padding:16px 16px calc(28px + env(safe-area-inset-bottom))}
-.top{display:flex;align-items:center;justify-content:space-between}.back{color:#aaa;text-decoration:none}.brand{font-weight:800;letter-spacing:.12em}.pill{font-size:11px;color:#aaa;border:1px solid var(--line);padding:7px 10px;border-radius:99px;background:var(--glass)}
-h1{text-align:center;font-size:34px;letter-spacing:-.05em;margin:26px 0 3px}.sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:18px}
-.game{border:1px solid var(--line);border-radius:28px;background:#ffffff07;backdrop-filter:blur(24px);padding:16px;box-shadow:0 25px 80px #0008}
-.opponents{display:flex;justify-content:space-around;gap:10px;margin-bottom:15px}.op{font-size:12px;color:#aaa;text-align:center}.op b{display:block;color:#eee;font-size:17px;margin-bottom:3px}
-.table{min-height:245px;border:1px solid #ffffff12;border-radius:24px;background:radial-gradient(circle,#181818,#0d0d0d);display:flex;align-items:center;justify-content:center;gap:18px;position:relative}
-.center-label{position:absolute;top:12px;left:14px;font-size:10px;color:#666;letter-spacing:.12em;text-transform:uppercase}
-.card{width:62px;height:88px;border-radius:10px;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:27px;color:#fff;box-shadow:0 8px 20px #0008;user-select:none}
-.card.red{background:#e53935}.card.yellow{background:#f6c431;color:#111}.card.green{background:#2e9e5b}.card.blue{background:#2879d7}.card.wild{background:linear-gradient(135deg,#e53935 0 25%,#f6c431 25% 50%,#2e9e5b 50% 75%,#2879d7 75%)}
-.draw{width:62px;height:88px;border-radius:10px;background:repeating-linear-gradient(45deg,#171717,#171717 5px,#242424 5px,#242424 10px);border:3px solid #eee;display:grid;place-items:center;font-size:22px}
-.turn{text-align:center;margin:13px 0;color:#aaa;font-size:12px}.hand{display:flex;gap:8px;overflow-x:auto;padding:10px 3px 14px;min-height:108px;justify-content:center}.hand .card{flex:0 0 58px;height:82px;cursor:pointer;transition:.15s}.hand .card:hover{transform:translateY(-8px)}.hand .card.disabled{opacity:.35;cursor:not-allowed;transform:none}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions button{border:1px solid var(--line);background:#ffffff0b;color:#eee;padding:12px;border-radius:14px;font-weight:700}.actions button.primary{background:#eee;color:#111}
-.overlay{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal{max-width:360px;width:100%;border:1px solid var(--line);border-radius:24px;background:#151515;padding:22px;text-align:center}.modal h2{margin-top:0}.colors{display:grid;grid-template-columns:1fr 1fr;gap:9px}.colors button{padding:15px;border:0;border-radius:13px;font-weight:800}.red{background:#e53935;color:#fff}.yellow{background:#f6c431;color:#111}.green{background:#2e9e5b;color:#fff}.blue{background:#2879d7;color:#fff}
-.toast{text-align:center;color:#888;font-size:11px;min-height:16px;margin-top:10px}
-@media(max-width:500px){.table{min-height:220px}.card{width:56px;height:80px}.hand .card{flex-basis:54px;height:78px}.hand{justify-content:flex-start}.opponents{justify-content:space-between}}
+:root{color-scheme:dark;--bg:#050505;--panel:rgba(255,255,255,.055);--panel2:rgba(255,255,255,.085);--line:rgba(255,255,255,.12);--text:#f7f7f7;--muted:#8e8e8e;--green:#2fbf71}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#050505;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
+body{background:radial-gradient(700px 360px at 50% -8%,#252525 0%,transparent 65%),radial-gradient(500px 300px at 100% 55%,#151515 0%,transparent 70%),#050505}
+button{font:inherit}.app{max-width:980px;margin:auto;padding:14px 15px calc(28px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between;height:42px}.back{color:#aaa;text-decoration:none;font-size:13px}.brand{font-weight:850;letter-spacing:.16em;font-size:12px}.pill{font-size:11px;color:#ddd;border:1px solid var(--line);padding:7px 10px;border-radius:999px;background:#ffffff08;backdrop-filter:blur(18px)}
+.hero{text-align:center;padding:20px 0 13px}.hero h1{font-size:38px;letter-spacing:-.07em;margin:0 0 3px}.hero p{margin:0;color:var(--muted);font-size:12px}
+.game{border:1px solid var(--line);border-radius:30px;background:linear-gradient(145deg,#ffffff0b,#ffffff04);backdrop-filter:blur(28px);padding:14px;box-shadow:0 30px 100px #000b}
+.players{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.player{min-width:0;padding:9px 7px;border:1px solid transparent;border-radius:16px;text-align:center;color:#999;font-size:10px}.player.active{border-color:#ffffff20;background:#ffffff08;color:#eee}.avatar{width:30px;height:30px;margin:0 auto 5px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#252525,#101010);border:1px solid #ffffff18;font-size:14px}.player.active .avatar{box-shadow:0 0 0 2px #ffffff12,0 0 20px #ffffff12}.player strong{display:block;color:#ddd;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.count{display:block;color:#666;margin-top:2px}
+.table{min-height:310px;border:1px solid #ffffff12;border-radius:26px;background:radial-gradient(circle at 50% 45%,#1b1b1b,#0b0b0b 70%);display:flex;align-items:center;justify-content:center;gap:24px;position:relative;overflow:hidden}
+.table:before{content:"";position:absolute;width:260px;height:260px;border-radius:50%;border:1px solid #ffffff08;box-shadow:0 0 100px #fff1}.status{position:absolute;top:13px;left:15px;color:#666;font-size:9px;letter-spacing:.14em;text-transform:uppercase}.room{position:absolute;top:12px;right:14px;color:#666;font-size:9px}
+.play-stack{display:flex;align-items:center;gap:24px;position:relative;z-index:1}.deck{width:76px;height:108px;border-radius:13px;background:#090909;border:2px solid #eee;box-shadow:0 14px 28px #0009;display:grid;place-items:center;transform:rotate(-3deg);position:relative;overflow:hidden}.deck:before{content:"V";font-weight:950;font-size:40px;color:#fff;border:3px solid #fff;border-radius:50%;width:52px;height:52px;display:grid;place-items:center;transform:rotate(-3deg)}.deck:after{content:"UNO";position:absolute;font-size:8px;letter-spacing:.18em;bottom:8px;color:#888}
+.card{width:78px;height:108px;border-radius:14px;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:950;font-size:30px;border:2px solid #fff;box-shadow:0 14px 30px #000a;transform:rotate(2deg);overflow:hidden;text-shadow:0 2px 2px #0005}.card:before{content:"";position:absolute;width:84px;height:52px;border-radius:50%;background:#ffffff25;transform:rotate(-45deg);border:1px solid #fff4}.card:after{content:"";position:absolute;inset:5px;border-radius:10px;border:1px solid #ffffff55;pointer-events:none}.card span{position:relative;z-index:2}.card.red{background:linear-gradient(145deg,#ff514b,#b81720)}.card.yellow{background:linear-gradient(145deg,#ffe76a,#d99b00);color:#18120a;text-shadow:none}.card.green{background:linear-gradient(145deg,#43d987,#08763f)}.card.blue{background:linear-gradient(145deg,#58a8ff,#1351ae)}.card.wild{background:conic-gradient(#e33 0 25%,#f2c833 0 50%,#31b76b 0 75%,#347ee0 0);}.card.small{width:70px;height:98px;font-size:27px}
+.turn{text-align:center;color:#aaa;font-size:11px;margin:11px 0 2px}.hand{display:flex;justify-content:center;gap:7px;overflow-x:auto;padding:16px 5px 18px;min-height:126px}.hand .card{flex:0 0 68px;height:96px;cursor:pointer;transition:transform .16s ease,filter .16s ease}.hand .card:hover{transform:translateY(-10px) rotate(0deg)}.hand .card.disabled{filter:grayscale(.4);opacity:.28;cursor:not-allowed;transform:none}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.actions button{border:1px solid var(--line);background:#ffffff08;color:#eee;padding:12px 10px;border-radius:15px;font-weight:750}.actions .primary{background:#f1f1f1;color:#0a0a0a}.actions .danger{background:#2a0e10;color:#ffb5b8;border-color:#5b2024}
+.lobby{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.lobby button{border:1px solid var(--line);background:#ffffff07;color:#bbb;padding:10px;border-radius:13px;font-size:12px}
+.toast{text-align:center;color:#777;font-size:10px;min-height:15px;margin-top:10px}
+.overlay{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;padding:18px;z-index:20}.modal{max-width:380px;width:100%;border:1px solid var(--line);border-radius:25px;background:#151515eF;backdrop-filter:blur(28px);padding:22px;text-align:center;box-shadow:0 30px 100px #000}.modal h2{margin:0 0 7px}.modal p{color:#888;font-size:12px}.colors{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}.colors button{padding:14px;border:0;border-radius:13px;font-weight:850}.red{background:#df3038;color:#fff}.yellow{background:#efc638;color:#111}.green{background:#2cae65;color:#fff}.blue{background:#317ddd;color:#fff}
+@media(max-width:650px){.table{min-height:260px}.card{width:68px;height:96px}.players{gap:3px}.player{padding:8px 3px}.actions{grid-template-columns:1fr 1fr}.actions button:last-child{grid-column:1/-1}.hand{justify-content:flex-start}.play-stack{gap:18px}.deck,.card.small{width:66px;height:94px}}
 </style>
 </head>
 <body>
 <main class="app">
-<div class="top"><a class="back" href="../../">← VYNTRO</a><div class="brand">UNO</div><div class="pill" id="score">0 pts</div></div>
-<h1>UNO</h1><div class="sub">Classic-style VYNTRO card game</div>
+<div class="top"><a class="back" href="../../">← VYNTRO</a><div class="brand">VYNTRO / UNO</div><div class="pill" id="score">0 pts</div></div>
+<section class="hero"><h1>UNO</h1><p>Fast matches. Real players. One table.</p></section>
 <section class="game">
-<div class="opponents"><div class="op"><b id="cpu1">7</b>🤖 Nova</div><div class="op"><b id="cpu2">7</b>🤖 Byte</div><div class="op"><b id="cpu3">7</b>🤖 Pixel</div></div>
-<div class="table"><span class="center-label" id="status">Your turn</span><div class="draw" id="draw">↻</div><div id="discard"></div></div>
+<div class="players">
+<div class="player active"><div class="avatar">👤</div><strong id="p0">You</strong><span class="count" id="c0">7 cards</span></div>
+<div class="player"><div class="avatar">👤</div><strong id="p1">Waiting…</strong><span class="count" id="c1">—</span></div>
+<div class="player"><div class="avatar">👤</div><strong id="p2">Waiting…</strong><span class="count" id="c2">—</span></div>
+<div class="player"><div class="avatar">👤</div><strong id="p3">Waiting…</strong><span class="count" id="c3">—</span></div>
+</div>
+<div class="table">
+<span class="status" id="status">YOUR TURN</span><span class="room" id="room">ROOM • LOCAL</span>
+<div class="play-stack"><div class="deck" id="deck"></div><div id="discard"></div></div>
+</div>
 <div class="turn" id="turn">Tap a playable card</div>
 <div class="hand" id="hand"></div>
-<div class="actions"><button id="drawBtn" class="primary">Draw Card</button><button id="unoBtn">UNO!</button></div>
+<div class="actions"><button id="drawBtn" class="primary">Draw</button><button id="unoBtn">UNO!</button><button id="newBtn" class="danger">New Game</button></div>
+<div class="lobby"><button id="createBtn">👥 Create 4-Player Room</button><button id="inviteBtn">↗ Invite Players</button></div>
 <div class="toast" id="toast"></div>
 </section>
 </main>
@@ -43,42 +53,33 @@ h1{text-align:center;font-size:34px;letter-spacing:-.05em;margin:26px 0 3px}.sub
 <script>
 const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand()}
 const colors=["red","yellow","green","blue"],values=["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2"];
-let deck=[],hand=[],discard=null,currentColor=null,locked=false,unoCalled=false,score=0;
+let deck=[],hand=[],discard=null,currentColor=null,locked=false,score=0;
 const $=id=>document.getElementById(id);
-function makeDeck(){let d=[];colors.forEach(c=>{values.forEach((v,i)=>{d.push({c,v});if(v!=="0")d.push({c,v})})});for(let i=0;i<4;i++){d.push({c:"wild",v:"wild"},{c:"wild",v:"+4"})}return d}
+function makeDeck(){let d=[];colors.forEach(c=>values.forEach(v=>{d.push({c,v});if(v!=="0")d.push({c,v})}));for(let i=0;i<4;i++){d.push({c:"wild",v:"wild"},{c:"wild",v:"+4"})}return d}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function cardEl(card,clickable=false){const e=document.createElement("div");e.className="card "+card.c;e.textContent=card.v==="skip"?"⊘":card.v==="reverse"?"↔":card.v;e.dataset.i=clickable?card.i:"";return e}
+function label(v){return v==="skip"?"⊘":v==="reverse"?"↔":v==="+2"?"＋2":v==="+4"?"＋4":v==="wild"?"✦":v}
+function cardEl(c,click=false){const e=document.createElement("div");e.className="card "+c.c+(click?"":" small");const s=document.createElement("span");s.textContent=label(c.v);e.appendChild(s);return e}
 function playable(c){return c.c==="wild"||c.c===currentColor||c.v===discard.v}
 function render(){
  $("discard").innerHTML="";$("discard").appendChild(cardEl(discard));
  $("hand").innerHTML="";
- hand.forEach((c,i)=>{c.i=i;const e=cardEl(c,true);if(locked||!playable(c))e.classList.add("disabled");e.onclick=()=>play(i);$("hand").appendChild(e)});
- $("score").textContent=score+" pts";$("turn").textContent=locked?"Waiting for opponent…":"Tap a playable card";
+ hand.forEach((c,i)=>{const e=cardEl(c,true);if(locked||!playable(c))e.classList.add("disabled");e.onclick=()=>play(i);$("hand").appendChild(e)});
+ $("score").textContent=score+" pts";$("turn").textContent=locked?"Waiting for other players…":"Tap a playable card";
+ $("status").textContent=locked?"OPPONENT TURN":"YOUR TURN";
+ $("c0").textContent=hand.length+" cards";
 }
 function start(){deck=shuffle(makeDeck());hand=deck.splice(0,7);discard=deck.pop();while(discard.c==="wild"){deck.unshift(discard);discard=deck.pop()}currentColor=discard.c;locked=false;render()}
-function refill(){if(deck.length)return;if(discard){const top=discard;deck=shuffle(window._oldDiscard||[]);window._oldDiscard=[];discard=top}}
-function play(i){
- if(locked)return;const c=hand[i];if(!playable(c))return;
- hand.splice(i,1);discard=c;currentColor=c.c==="wild"?null:c.c;
- tg?.HapticFeedback?.impactOccurred("light");
- if(hand.length===0){score+=100;toast("🎉 You won! New round starting…");setTimeout(start,900);return}
- if(c.c==="wild"){locked=true;$("overlay").style.display="flex";render();return}
- score+=c.v==="+2"?20:10;render();setTimeout(cpuTurn,650)
-}
-function chooseColor(c){currentColor=c;$("overlay").style.display="none";locked=false;render();setTimeout(cpuTurn,500)}
+function play(i){if(locked)return;const c=hand[i];if(!playable(c))return;hand.splice(i,1);discard=c;currentColor=c.c==="wild"?null:c.c;tg?.HapticFeedback?.impactOccurred("light");if(!hand.length){score+=100;toast("🎉 You won!");setTimeout(start,900);return}score+=c.v==="+2"?20:10;if(c.c==="wild"){locked=true;$("overlay").style.display="flex"}render();if(c.c!=="wild")setTimeout(cpuTurn,550)}
+function chooseColor(c){currentColor=c;$("overlay").style.display="none";locked=false;render();setTimeout(cpuTurn,450)}
 document.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>chooseColor(b.dataset.color));
-function cpuTurn(){
- if(hand.length===0)return;locked=true;render();
- // Lightweight CPU: choose a playable card or draw.
- const candidates=hand.filter(c=>c.c===currentColor||c.c==="wild"||c.v===discard.v);
- if(candidates.length){const c=candidates[Math.floor(Math.random()*candidates.length)];discard=c;currentColor=c.c==="wild"?colors[Math.floor(Math.random()*4)]:c.c;toast("🤖 CPU played "+c.v)}
- else toast("🤖 Opponent drew a card");
- locked=false;render()
-}
-function drawCard(){if(locked)return;const c=deck.pop();if(!c){toast("Deck empty — reshuffling soon");return}hand.push(c);toast(playable(c)?"Card drawn — you can play it.":"Card drawn.");render()}
-function toast(t){$("toast").textContent=t;setTimeout(()=>{if($("toast").textContent===t)$("toast").textContent=""},1800)}
-$("drawBtn").onclick=drawCard;$("unoBtn").onclick=()=>{if(hand.length===1){unoCalled=true;score+=5;toast("🔥 UNO! +5 points")}else toast("You can call UNO when one card remains.")};
+function cpuTurn(){if(!hand.length)return;locked=true;render();setTimeout(()=>{const candidates=hand.filter(c=>c.c===currentColor||c.c==="wild"||c.v===discard.v);if(candidates.length){const c=candidates[Math.floor(Math.random()*candidates.length)];discard=c;currentColor=c.c==="wild"?colors[Math.floor(Math.random()*4)]:c.c;toast("Opponent played "+label(c.v))}else toast("Opponent drew a card");locked=false;render()},500)}
+function drawCard(){if(locked)return;const c=deck.pop();if(!c){toast("Deck empty");return}hand.push(c);toast(playable(c)?"Playable card drawn":"Card drawn");render()}
+function toast(t){$("toast").textContent=t;setTimeout(()=>{$("toast").textContent=""},1800)}
+$("drawBtn").onclick=drawCard;$("newBtn").onclick=start;$("unoBtn").onclick=()=>{if(hand.length===1){score+=5;toast("🔥 UNO!")}else toast("UNO is called with one card left.")};
+$("createBtn").onclick=()=>toast("👥 Multiplayer lobby coming next — 4 players max.");
+$("inviteBtn").onclick=()=>{if(tg?.switchInlineQuery){tg.switchInlineQuery("Join my VYNTRO UNO game 🎴")}else if(navigator.share){navigator.share({title:"VYNTRO UNO",text:"Join my UNO game in VYNTRO."}).catch(()=>{})}else toast("Open VYNTRO from Telegram to invite players.")};
 start();
 </script>
 </body>
+</html>
 </html>
