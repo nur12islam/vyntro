@@ -143,10 +143,15 @@ $("newBtn").onclick=()=>{code="";game=null;clearInterval(pollTimer);history.repl
 $("createBtn").onclick=createRoom;
 $("inviteBtn").onclick=async()=>{
  if(!code){toast("Create a room first.");return}
- const text="Join my VYNTRO UNO game 🎴 Room: "+code;
- if(navigator.share){try{await navigator.share({title:"VYNTRO UNO",text})}catch(_){}}
- else if(navigator.clipboard){await navigator.clipboard.writeText(text);toast("Invite copied: "+code)}
- else toast("Send room code "+code+" to your friends.");
+ try{
+   const j=await api("/api/uno/invite",{code});
+   const text="Join my VYNTRO UNO game 🎴";
+   const url=j.url;
+   if(navigator.share){try{await navigator.share({title:"VYNTRO UNO",text,url});return}catch(_){}
+   }
+   if(navigator.clipboard){await navigator.clipboard.writeText(url);toast("UNO invite copied • "+code);return}
+   toast("Room "+code+" • "+url);
+ }catch(err){toast("⚠️ "+err.message)}
 };
 (async()=>{
  $("p0").textContent=name();
