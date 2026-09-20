@@ -90,9 +90,9 @@ header,aside{display:none!important}
 </aside>
 <main id="preview"></main>
 </div>
-<script src="https://unpkg.com/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
-<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://unpkg.com/docx@9.6.1/dist/index.umd.cjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.6.1/build/index.umd.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -353,8 +353,8 @@ async function exportDOCX(){
       alignment:AlignmentType.CENTER,
       spacing:{after:700,line:ls},
       children:[new TextRun({
-        text:$("assessment").value.trim()+"\\n"+
-             $("department").value.trim()+"\\n"+
+        text:$("assessment").value.trim()+"\n"+
+             $("department").value.trim()+"\n"+
              $("university").value.trim(),
         font:"Times New Roman",
         size:fs*2
@@ -375,7 +375,7 @@ async function exportDOCX(){
       alignment:AlignmentType.CENTER,
       spacing:{after:700,line:ls},
       children:[new TextRun({
-        text:$("student").value.trim()+"\\n"+$("semester").value.trim(),
+        text:$("student").value.trim()+"\n"+$("semester").value.trim(),
         bold:true,
         font:"Times New Roman",
         size:fs*2
