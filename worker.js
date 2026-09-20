@@ -93,6 +93,49 @@ async function sendStartMessage(env, chatId, firstName = "there") {
   return { sent: true };
 }
 
+async function handleTelegramUpdate(env, update) {
+  const message = update?.message;
+  if (!message?.chat?.id) return { ok: true, ignored: true };
+
+  const text = String(message.text || "").trim();
+  const command = (text.split(/\\s+/)[0] || "").split("@")[0].toLowerCase();
+
+  if (command === "/start") {
+    return sendStartMessage(
+      env,
+      message.chat.id,
+      message.from?.first_name || "there"
+    );
+  }
+
+  if (command === "/help") {
+    const token = env?.TELEGRAM_BOT_TOKEN;
+    if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+
+    const response = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: message.chat.id,
+        text: "🤖 VYNTRO Help\\n\\n/start — Open VYNTRO\\n/help — Show this help\\n/app — Open the VYNTRO Mini App"
+      })
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Telegram API ${response.status}: ${body.slice(0, 300)}`);
+    }
+
+    return { sent: true };
+  }
+
+  if (command === "/app") {
+    return sendStartMessage(env, message.chat.id, message.from?.first_name || "there");
+  }
+
+  return { ok: true, ignored: true };
+}
+
 async function runStatusCheck(env, scheduledTime = Date.now()) {
   const info = versionInfo(env);
   const versionCreated = info.timestamp ? Date.parse(info.timestamp) : NaN;
@@ -252,12 +295,28 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    if (url.pathname === "/api/telegram" && request.method === "POST") {
+      try {
+        const update = await request.json();
+        const result = await handleTelegramUpdate(env, update);
+        return Response.json({ ok: true, result });
+      } catch (error) {
+        console.error("Telegram webhook error:", error);
+        return Response.json(
+          { ok: false, error: String(error?.message || error) },
+          { status: 500 }
+        );
+      }
+    }
+
     if (url.pathname === "/api/telegram/start" && request.method === "POST") {
       try {
         const body = await request.json().catch(() => ({}));
-        const chatId = body.chatId;
-        const firstName = body.firstName || "there";
-        return Response.json(await sendStartMessage(env, chatId, firstName));
+        return Response.json(await sendStartMessage(
+          env,
+          body.chatId,
+          body.firstName || "there"
+        ));
       } catch (error) {
         return Response.json({ error: String(error?.message || error) }, { status: 500 });
       }
