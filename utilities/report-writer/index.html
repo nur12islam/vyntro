@@ -23,6 +23,9 @@ h2{font-size:14px;margin-top:20px}
 .format-note{color:#777;font-size:11px;line-height:1.4}
 button{width:100%;padding:12px;border:0;border-radius:11px;margin-top:14px;font-weight:700;cursor:pointer}
 button.secondary{background:#191919;color:#ddd;border:1px solid #333}
+.export-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.export-actions button{margin-top:14px;background:#f1f1f1;color:#111}
+.export-actions .docx-btn{background:#191919;color:#eee;border:1px solid #333}
 #preview{padding:25px;overflow:auto;background:radial-gradient(circle at 80% 0,#1a1a1a,transparent 35%)}
 .preview{width:210mm;height:297mm;box-sizing:border-box;background:#fff;color:#111;margin:0 auto 25px;padding:25mm 22mm 20mm 25mm;position:relative;box-shadow:0 3px 22px #0005;overflow:hidden}
 .no{position:absolute;right:18mm;top:12mm;color:#777;opacity:.72;font:11pt "Times New Roman",serif}
@@ -79,11 +82,17 @@ header,aside{display:none!important}
 <textarea id="report" rows="20" placeholder="Write your report here..."></textarea>
 <h2>References</h2>
 <textarea id="refs" rows="12" placeholder="Enter your references here..."></textarea>
-<button onclick="window.print()">Print / Save PDF</button>
+<div class="export-actions">
+<button id="pdfBtn" onclick="exportPDF()">📄 Export PDF</button>
+<button id="docxBtn" class="docx-btn" onclick="exportDOCX()">📝 Export DOCX</button>
+</div>
 <button class="secondary" onclick="clearAll()">Clear All</button>
 </aside>
 <main id="preview"></main>
 </div>
+<script src="https://unpkg.com/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://unpkg.com/docx@9.6.1/dist/index.umd.cjs"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -235,6 +244,201 @@ function clearAll(){
  $(id).addEventListener("input",render);
  $(id).addEventListener("change",render);
 });
+
+function safeFileName(){
+  const raw=$("title").value.trim() || "VYNTRO-Report";
+  return raw.replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80) || "VYNTRO-Report";
+}
+
+function setExportBusy(id,busy,label){
+  const b=$(id);
+  b.disabled=busy;
+  b.style.opacity=busy?".65":"1";
+  b.textContent=busy?"⏳ Generating…":label;
+}
+
+async function exportPDF(){
+  setExportBusy("pdfBtn",true,"📄 Export PDF");
+  try{
+    const pages=[...document.querySelectorAll(".preview")];
+    if(!pages.length) throw new Error("Nothing to export.");
+
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});
+
+    for(let i=0;i<pages.length;i++){
+      if(i>0) pdf.addPage("a4","portrait");
+
+      const canvas=await html2canvas(pages[i],{
+        scale:2,
+        useCORS:true,
+        backgroundColor:"#ffffff",
+        logging:false,
+        width:pages[i].scrollWidth,
+        height:pages[i].scrollHeight,
+        windowWidth:pages[i].scrollWidth,
+        windowHeight:pages[i].scrollHeight
+      });
+
+      const img=canvas.toDataURL("image/jpeg",0.94);
+      pdf.addImage(img,"JPEG",0,0,210,297,undefined,"FAST");
+    }
+
+    pdf.save(safeFileName()+".pdf");
+  }catch(err){
+    console.error(err);
+    alert("PDF export failed. Please try again.");
+  }finally{
+    setExportBusy("pdfBtn",false,"📄 Export PDF");
+  }
+}
+
+function docxAlignment(value){
+  const A=window.docx.AlignmentType;
+  return value==="center"?A.CENTER:value==="right"?A.RIGHT:value==="justify"?A.JUSTIFIED:A.LEFT;
+}
+
+function docxLineSpacing(value){
+  return Math.round(parseFloat(value)*240);
+}
+
+function addDocxParagraphs(children,text,options){
+  const paragraphs=splitParagraphs(text);
+  for(const value of paragraphs){
+    children.push(new docx.Paragraph({
+      alignment:options.alignment,
+      spacing:{line:options.line,after:200},
+      indent:options.indent?{firstLine:720}:undefined,
+      widowControl:true,
+      children:[new docx.TextRun({
+        text:value,
+        font:"Times New Roman",
+        size:options.size*2
+      })]
+    }));
+  }
+}
+
+async function exportDOCX(){
+  setExportBusy("docxBtn",true,"📝 Export DOCX");
+  try{
+    if(!window.docx) throw new Error("DOCX library did not load.");
+
+    const {
+      Document,
+      Packer,
+      Paragraph,
+      TextRun,
+      AlignmentType,
+      PageBreak
+    }=window.docx;
+
+    const fs=parseFloat($("fontSize").value);
+    const ls=docxLineSpacing($("lineSpacing").value);
+    const align=docxAlignment($("align").value);
+    const children=[];
+
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      spacing:{before:4200,after:900,line:ls},
+      children:[new TextRun({
+        text:$("title").value.trim(),
+        bold:true,
+        font:"Times New Roman",
+        size:fs*2
+      })]
+    }));
+
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      spacing:{after:700,line:ls},
+      children:[new TextRun({
+        text:$("assessment").value.trim()+"\\n"+
+             $("department").value.trim()+"\\n"+
+             $("university").value.trim(),
+        font:"Times New Roman",
+        size:fs*2
+      })]
+    }));
+
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      spacing:{before:700,after:0,line:ls},
+      children:[new TextRun({
+        text:"Submitted by",
+        font:"Times New Roman",
+        size:fs*2
+      })]
+    }));
+
+    children.push(new Paragraph({
+      alignment:AlignmentType.CENTER,
+      spacing:{after:700,line:ls},
+      children:[new TextRun({
+        text:$("student").value.trim()+"\\n"+$("semester").value.trim(),
+        bold:true,
+        font:"Times New Roman",
+        size:fs*2
+      })]
+    }));
+
+    const sections=[
+      ["Executive Summary",$("summary").value,false],
+      ["Report",$("report").value,false],
+      ["References",$("refs").value,true]
+    ];
+
+    for(const [heading,text,isRefs] of sections){
+      if(!splitParagraphs(text).length) continue;
+
+      children.push(new Paragraph({
+        pageBreakBefore:true,
+        alignment:align,
+        spacing:{after:180,line:ls},
+        children:[new TextRun({
+          text:heading,
+          bold:true,
+          font:"Times New Roman",
+          size:(fs+2)*2
+        })]
+      }));
+
+      addDocxParagraphs(children,text,{
+        alignment:isRefs?AlignmentType.LEFT:AlignmentType.JUSTIFIED,
+        line:ls,
+        size:fs,
+        indent:!isRefs
+      });
+    }
+
+    const doc=new Document({
+      sections:[{
+        properties:{
+          page:{
+            size:{width:11906,height:16838},
+            margin:{top:1417,right:1247,bottom:1134,left:1417}
+          }
+        },
+        children
+      }]
+    });
+
+    const blob=await Packer.toBlob(doc);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=safeFileName()+".docx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }catch(err){
+    console.error(err);
+    alert("DOCX export failed. Please try again.");
+  }finally{
+    setExportBusy("docxBtn",false,"📝 Export DOCX");
+  }
+}
 
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand()}
