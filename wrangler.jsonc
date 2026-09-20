@@ -6,12 +6,20 @@
   "assets": {
     "directory": "."
   },
+  "durable_objects": {
+    "bindings": [
+      { "name": "UNO_ROOM_DO", "class_name": "UnoRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["UnoRoom"] }
+  ],
   "version_metadata": {
     "binding": "CF_VERSION_METADATA"
   },
   "triggers": {
     "crons": [
-      "* * * * *"
+      "*/10 * * * *"
     ]
   }
 }
