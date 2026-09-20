@@ -65,6 +65,9 @@ button{width:100%;border:0;border-radius:12px;padding:12px 14px;margin-top:8px;b
 <option value="professional">Professional</option>
 <option value="conversational">Conversational</option>
 <option value="clear">Clear & concise</option>
+<option value="editorial">Editorial</option>
+<option value="student">Student Essay</option>
+<option value="research">Research Writing</option>
 </select></div>
 <div class="field"><label>Rewrite depth</label><select id="depth">
 <option value="light">Light</option>
@@ -72,6 +75,7 @@ button{width:100%;border:0;border-radius:12px;padding:12px 14px;margin-top:8px;b
 <option value="deep">Deep</option>
 </select></div>
 </div>
+<div class="field"><label>Use my writing style (optional)</label><textarea id="styleSample" style="min-height:110px;resize:vertical;font:12px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:11px;border:1px solid #ffffff14;border-radius:11px;background:#151515;color:#eee" placeholder="Paste 200–500 words of your own writing. VYNTRO will use it only as a voice reference."></textarea><div style="color:#666;font-size:9px;margin-top:4px">Voice only — wording and ideas are not copied.</div></div>
 <div class="field"><label>Length</label><select id="length">
 <option value="preserve" selected>Keep roughly the same length</option>
 <option value="shorter">Slightly shorter</option>
@@ -135,12 +139,12 @@ $("run").onclick=async()=>{
  try{
    const res=await fetch("/api/humanize",{method:"POST",headers:{"Content-Type":"application/json","X-Telegram-Init-Data":tg.initData},body:JSON.stringify({
      text,style:$("style").value,depth:$("depth").value,length:$("length").value,
-     preserveCitations:$("citations").checked,preserveParagraphs:$("paragraphs").checked
+     preserveCitations:$("citations").checked,preserveParagraphs:$("paragraphs").checked,styleSample:$("styleSample").value
    })});
    const data=await res.json().catch(()=>({}));
    if(!res.ok||!data.ok)throw new Error(data.error||"Humanization failed.");
    $("output").value=data.text||"";updateOutput();$("bar").style.width="100%";
-   $("status").textContent="Complete • "+data.chunks+" sections • "+data.provider;
+   $("status").textContent=data.quality?.ok ? "Complete • "+data.chunks+" sections • "+data.provider+" • ✓ quality checks passed" : "Complete • "+data.chunks+" sections • "+data.provider+" • ⚠ review quality checks";
  }catch(err){
    $("status").textContent="Error: "+(err.message||"Unknown error");
    $("bar").style.width="0";
