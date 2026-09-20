@@ -312,7 +312,7 @@ async function validateTelegramInitData(initData, token) {
     .filter(([key]) => key !== "hash")
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}=${value}`)
-    .join("\\n");
+    .join("\n");
 
   const encoder = new TextEncoder();
   const webAppKey = await crypto.subtle.importKey(
