@@ -3,6 +3,76 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
 
 const A4 = { width: 595.28, height: 841.89 };
 
+const TELEGRAM_API = "https://api.telegram.org";
+
+function versionInfo(env) {
+  const meta = env?.CF_VERSION_METADATA;
+  return {
+    id: meta?.id || "unknown",
+    tag: meta?.tag || null,
+    timestamp: meta?.timestamp || null
+  };
+}
+
+function formatVersion(env) {
+  const info = versionInfo(env);
+  return info.id === "unknown" ? "unknown" : info.id.slice(0, 12);
+}
+
+async function sendTelegramStatus(env, message) {
+  const token = env?.TELEGRAM_BOT_TOKEN;
+  const chatId = env?.TELEGRAM_STATUS_CHAT_ID;
+  if (!token || !chatId) {
+    console.warn("VYNTRO status monitor is not configured: missing Telegram secrets.");
+    return { sent: false, reason: "missing_secrets" };
+  }
+
+  const response = await fetch(
+    `${TELEGRAM_API}/bot${token}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        disable_web_page_preview: true
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram API ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  return { sent: true };
+}
+
+async function runStatusCheck(env, scheduledTime = Date.now()) {
+  const info = versionInfo(env);
+  const versionCreated = info.timestamp ? Date.parse(info.timestamp) : NaN;
+  const recentDeployment = Number.isFinite(versionCreated)
+    ? (scheduledTime - versionCreated) <= 20 * 60 * 1000
+    : false;
+
+  const headline = recentDeployment
+    ? "🟢 VYNTRO IS ONLINE\n🚀 Deployment detected"
+    : "💚 VYNTRO Heartbeat";
+
+  const message = [
+    headline,
+    "",
+    "Status: 🟢 Operational",
+    `Version: ${formatVersion(env)}`,
+    info.tag ? `Tag: ${info.tag}` : null,
+    `Checked: ${new Date(scheduledTime).toISOString()}`,
+    "",
+    "VYNTRO • Create. Play. Explore."
+  ].filter(Boolean).join("\n");
+
+  return sendTelegramStatus(env, message);
+}
+
 function cleanName(value) {
   return (String(value || "VYNTRO-Report").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "VYNTRO-Report");
 }
@@ -136,6 +206,20 @@ async function makeDOCX(data) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/health" && request.method === "GET") {
+      const info = versionInfo(env);
+      return Response.json({
+        service: "VYNTRO",
+        status: "online",
+        environment: "production",
+        version: info,
+        checkedAt: new Date().toISOString(),
+        statusMonitorConfigured: Boolean(env?.TELEGRAM_BOT_TOKEN && env?.TELEGRAM_STATUS_CHAT_ID)
+      }, {
+        headers: { "Cache-Control": "no-store" }
+      });
+    }
     if (url.pathname === "/api/export" && request.method === "POST") {
       try {
         const data = await request.json();
@@ -160,5 +244,14 @@ export default {
     }
 
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(controller, env) {
+    try {
+      await runStatusCheck(env, controller.scheduledTime || Date.now());
+    } catch (error) {
+      console.error("VYNTRO status check failed:", error);
+      controller.noRetry();
+    }
   }
 };
