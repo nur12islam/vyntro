@@ -1237,3 +1237,124 @@ export default {
           response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO Quiz Arena"},body:JSON.stringify({model:"openrouter/free",temperature:.7,messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
         }
         if(!response.ok){const t=await response.text();return Response.json({ok:false,error:`${provider} request failed: ${response.status} ${t.slice(0,200)}`},{status:502});}
+        const data=await response.json();
+        let raw=String(data?.choices?.[0]?.message?.content||"").trim();
+        if(!raw) return Response.json({ok:false,error:"Quiz AI returned an empty response."},{status:502});
+        raw=raw.replace(/^\`\`\`json\s*/i,"").replace(/^\`\`\`\s*/,"").replace(/\s*\`\`\`$/,"").trim();
+
+        let quiz;
+        try {
+          quiz=JSON.parse(raw);
+        } catch (_) {
+          const match=raw.match(/\{[\s\S]*\}/);
+          if(!match) return Response.json({ok:false,error:"Quiz AI returned invalid JSON."},{status:502});
+          try { quiz=JSON.parse(match[0]); }
+          catch (error) { return Response.json({ok:false,error:"Quiz AI returned invalid JSON."},{status:502}); }
+        }
+
+        if(!Array.isArray(quiz?.questions) || quiz.questions.length!==count){
+          return Response.json({ok:false,error:"Quiz AI returned an invalid question count."},{status:502});
+        }
+
+        const questions=quiz.questions.map((q,index)=>{
+          const question=String(q?.question||"").trim();
+          const options=Array.isArray(q?.options)?q.options.map(x=>String(x??"").trim()).slice(0,4):[];
+          const answer=Number(q?.answer);
+          if(!question || options.length!==4 || options.some(x=>!x) || !Number.isInteger(answer) || answer<0 || answer>3){
+            throw new Error("invalid_question_"+index);
+          }
+          return {question,options,answer};
+        });
+
+        return Response.json({ok:true,provider,questions});
+      } catch(error) {
+        return Response.json({ok:false,error:String(error?.message||error)},{status:500});
+      }
+    }
+
+    if (url.pathname === "/api/export" && request.method === "POST") {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const type = String(body.type || "").toLowerCase();
+        if (!["pdf","docx"].includes(type)) {
+          return Response.json({ok:false,error:"Choose PDF or DOCX."},{status:400});
+        }
+
+        const data = {
+          title:String(body.title||""),
+          assessment:String(body.assessment||""),
+          department:String(body.department||""),
+          university:String(body.university||""),
+          student:String(body.student||""),
+          semester:String(body.semester||""),
+          align:String(body.align||"left"),
+          fontSize:Number(body.fontSize)||12,
+          lineSpacing:Number(body.lineSpacing)||2,
+          summary:String(body.summary||""),
+          report:String(body.report||""),
+          refs:String(body.refs||"")
+        };
+
+        const fileName = cleanName(data.title) + "." + type;
+        const mimeType = type === "pdf"
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+        let bytes;
+        if (type === "pdf") {
+          bytes = await makePDF(data);
+        } else {
+          const docBlob = await makeDOCX(data);
+          bytes = new Uint8Array(await docBlob.arrayBuffer());
+        }
+
+        const telegramUserId = await validateTelegramInitData(
+          String(body.telegramInitData||""),
+          env?.TELEGRAM_BOT_TOKEN
+        );
+
+        if (telegramUserId) {
+          await sendGeneratedDocumentToTelegram(
+            env,
+            telegramUserId,
+            bytes,
+            fileName,
+            mimeType
+          );
+          return Response.json({
+            ok:true,
+            delivered:"telegram",
+            fileName
+          });
+        }
+
+        return new Response(bytes, {
+          headers: {
+            "Content-Type": mimeType,
+            "Content-Disposition": `attachment; filename="${fileName}"`,
+            "Cache-Control":"no-store",
+            "Access-Control-Allow-Origin":"*"
+          }
+        });
+      } catch(error) {
+        console.error("Export error:",error);
+        return Response.json(
+          {ok:false,error:String(error?.message||error)},
+          {status:500}
+        );
+      }
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(controller, env) {
+    try {
+      await ensureTelegramWebhook(env);
+      await runStatusCheck(env, controller.scheduledTime || Date.now());
+    } catch(error) {
+      console.error("VYNTRO status check failed:",error);
+      controller.noRetry();
+    }
+  }
+};
