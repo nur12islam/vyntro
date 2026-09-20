@@ -274,16 +274,42 @@ async function downloadExport(type,buttonId,defaultLabel){
   b.style.opacity=".65";
   b.textContent="⏳ Generating…";
   try{
+    const payload=exportPayload(type);
+    if(tg?.initData) payload.telegramInitData=tg.initData;
+
     const response=await fetch("/api/export",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(exportPayload(type))
+      body:JSON.stringify(payload)
     });
+
+    const contentType=response.headers.get("content-type")||"";
     if(!response.ok){
       let message="Export failed.";
-      try{const j=await response.json();if(j.error) message=j.error}catch(_){}
+      try{
+        const j=await response.json();
+        if(j.error) message=j.error;
+      }catch(_){}
       throw new Error(message);
     }
+
+    if(contentType.includes("application/json")){
+      const result=await response.json();
+      if(result.delivered==="telegram"){
+        if(tg?.showPopup){
+          tg.showPopup({
+            title:"Export complete",
+            message:(type==="pdf"?"PDF":"DOCX")+" has been sent to your Telegram chat. 📄",
+            buttons:[{type:"ok"}]
+          });
+        }else{
+          alert((type==="pdf"?"PDF":"DOCX")+" has been sent to Telegram. 📄");
+        }
+        return;
+      }
+      throw new Error(result.error||"The export was generated but could not be delivered.");
+    }
+
     const blob=await response.blob();
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -295,8 +321,13 @@ async function downloadExport(type,buttonId,defaultLabel){
     a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),3000);
   }catch(err){
-    console.error(err);
-    alert((type==="pdf"?"PDF":"DOCX")+" export failed: "+(err.message||"Unknown error"));
+    console.error("VYNTRO export error:",err);
+    const message=(type==="pdf"?"PDF":"DOCX")+" export failed: "+(err.message||"Unknown error");
+    if(tg?.showPopup){
+      tg.showPopup({title:"Export failed",message,buttons:[{type:"ok"}]});
+    }else{
+      alert(message);
+    }
   }finally{
     b.disabled=false;
     b.style.opacity="1";
