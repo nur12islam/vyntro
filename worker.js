@@ -164,6 +164,30 @@ async function ensureTelegramWebhook(env) {
   return { configured: true, changed: true };
 }
 
+async function configureTelegramCommands(env) {
+  const token = env?.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
+
+  const response = await fetch(`${TELEGRAM_API}/bot${token}/setMyCommands`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      commands: [
+        { command: "start", description: "Open VYNTRO" },
+        { command: "app", description: "Open the VYNTRO Mini App" },
+        { command: "help", description: "Show VYNTRO help" }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram setMyCommands failed: ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  return true;
+}
+
 async function runStatusCheck(env, scheduledTime = Date.now()) {
   const info = versionInfo(env);
   const versionCreated = info.timestamp ? Date.parse(info.timestamp) : NaN;
@@ -350,7 +374,37 @@ export default {
       }
     }
 
-    if (url.pathname === "/api/health" && request.method === "GET") {
+    if (url.pathname === "/api/setup" && request.method === "GET") {
+      try {
+        const webhook = await ensureTelegramWebhook(env);
+        await configureTelegramCommands(env);
+        const chatId = env?.TELEGRAM_STATUS_CHAT_ID;
+        const token = env?.TELEGRAM_BOT_TOKEN;
+        let testMessage = null;
+
+        if (token && chatId) {
+          const result = await sendTelegramStatus(
+            env,
+            "🧪 VYNTRO Telegram Test\\n\\nStatus: 🟢 Worker is responding\\nWebhook: ✅ Configured\\nCommands: ✅ Configured\\n\\nVYNTRO • Create. Play. Explore. 🚀"
+          );
+          testMessage = result;
+        }
+
+        return Response.json({
+          ok: true,
+          webhook,
+          commands: true,
+          testMessage: testMessage || { sent: false, reason: "missing_secrets" }
+        });
+      } catch (error) {
+        return Response.json({
+          ok: false,
+          error: String(error?.message || error)
+        }, { status: 500 });
+      }
+    }
+
+        if (url.pathname === "/api/health" && request.method === "GET") {
       const info = versionInfo(env);
       return Response.json({
         service: "VYNTRO",
