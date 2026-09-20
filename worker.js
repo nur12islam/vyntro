@@ -750,6 +750,157 @@ async function makeDOCX(data) {
   return Packer.toBlob(doc);
 }
 
+
+function humanizerChunks(text, maxChars = 6500) {
+  const paras = String(text || "").replace(/\r/g, "").split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+  const chunks = [];
+  let current = "";
+  const push = value => { if (value) chunks.push(value); };
+
+  const addPiece = piece => {
+    const p = String(piece || "").trim();
+    if (!p) return;
+    if ((current ? current.length + 2 : 0) + p.length <= maxChars) current += (current ? "\n\n" : "") + p;
+    else { push(current); current = p; }
+  };
+
+  for (const para of paras) {
+    if (para.length <= maxChars) { addPiece(para); continue; }
+    const sentences = para.split(/(?<=[.!?])\s+/);
+    let piece = "";
+    for (const sentence of sentences) {
+      if (!sentence) continue;
+      if (sentence.length > maxChars) {
+        const words = sentence.split(/\s+/);
+        let small = "";
+        for (const word of words) {
+          if ((small ? small.length + 1 : 0) + word.length <= maxChars) small += (small ? " " : "") + word;
+          else { addPiece(small); small = word; }
+        }
+        addPiece(small);
+        continue;
+      }
+      if ((piece ? piece.length + 1 : 0) + sentence.length <= maxChars) piece += (piece ? " " : "") + sentence;
+      else { addPiece(piece); piece = sentence; }
+    }
+    addPiece(piece);
+  }
+  push(current);
+  return chunks;
+}
+
+function humanizerProtect(text) {
+  const kept = [];
+  const patterns = [
+    /\[[^\]]{1,180}\]\([^\)]{1,500}\)/g,
+    /https?:\/\/[^\s<>"']+/gi,
+    /\([^\n()]{0,100}\b(?:19|20)\d{2}[a-z]?[^\n()]{0,80}\)/gi,
+    /“[^”\n]{1,500}”/g,
+    /"[^"\n]{1,500}"/g
+  ];
+  let out = String(text || "");
+  for (const re of patterns) out = out.replace(re, match => {
+    const token = `⟦VYNTRO_KEEP_${kept.length}⟧`;
+    kept.push(match);
+    return token;
+  });
+  return { text: out, kept };
+}
+
+function humanizerRestore(text, kept) {
+  let out = String(text || "");
+  kept.forEach((value, i) => { out = out.replaceAll(`⟦VYNTRO_KEEP_${i}⟧`, value); });
+  return out;
+}
+
+async function humanizerCall(env, system, user, providerHint = "") {
+  const groq = env?.GROQ_API_KEY;
+  const openrouter = env?.OPENROUTER_API_KEY;
+  const order = providerHint === "OpenRouter" ? ["OpenRouter","Groq"] : ["Groq","OpenRouter"];
+  let lastError = "";
+  for (const provider of order) {
+    if (provider === "Groq" && !groq) continue;
+    if (provider === "OpenRouter" && !openrouter) continue;
+    const response = provider === "Groq"
+      ? await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},
+          body:JSON.stringify({model:"openai/gpt-oss-120b",temperature:.55,messages:[{role:"system",content:system},{role:"user",content:user}]})
+        })
+      : await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO Humanize"},
+          body:JSON.stringify({model:"openrouter/free",temperature:.55,messages:[{role:"system",content:system},{role:"user",content:user}]})
+        });
+    if (response.ok) {
+      const data = await response.json();
+      const content = String(data?.choices?.[0]?.message?.content || "").trim();
+      if (content) return {content,provider};
+      lastError = provider + " returned an empty response.";
+    } else {
+      lastError = provider + " request failed: " + response.status;
+      await response.text().catch(()=>{});
+    }
+  }
+  throw new Error(lastError || "No AI provider is configured.");
+}
+
+async function humanizeLongText(env, text, options) {
+  const chunks = humanizerChunks(text, 6500);
+  if (!chunks.length) throw new Error("No text supplied.");
+  const styleMap = {
+    natural:"natural, fluent and human-sounding without becoming casual",
+    academic:"academic, clear and readable while retaining an authentic student/research writing voice",
+    professional:"polished, professional and direct",
+    conversational:"warm, conversational and natural",
+    clear:"clear, concise and easy to follow"
+  };
+  const depthMap = {
+    light:"Make conservative edits. Improve awkward wording, repetition and flow while staying very close to the original.",
+    balanced:"Rebuild sentence phrasing where useful, vary rhythm and transitions, and remove repetitive or formulaic wording while preserving the author's meaning.",
+    deep:"Substantially restructure sentence patterns and paragraph flow where appropriate, while preserving every substantive idea and not adding new facts."
+  };
+  const lengthMap = {
+    preserve:"Keep approximately the same amount of information and overall length.",
+    shorter:"Make the result modestly shorter by removing redundancy, not by deleting important ideas.",
+    longer:"Develop wording modestly where clarity needs it, without adding new facts."
+  };
+  const style = styleMap[options.style] || styleMap.natural;
+  const depth = depthMap[options.depth] || depthMap.balanced;
+  const length = lengthMap[options.length] || lengthMap.preserve;
+  let previousTail = "";
+  const output = [];
+  let provider = "";
+  for (let i = 0; i < chunks.length; i++) {
+    const protectedChunk = options.preserveCitations ? humanizerProtect(chunks[i]) : {text:chunks[i],kept:[]};
+    const system = `You are VYNTRO Humanize, a careful long-form rewriting engine. Rewrite the supplied passage for ${style}. ${depth} ${length}
+Rules:
+- Return ONLY the rewritten passage, with no preface, explanation, bullets, labels or quotation marks around the answer.
+- Preserve factual meaning. Never invent facts, examples, sources, citations or claims.
+- Do not change names, numbers, dates, equations, URLs, citation markers or protected tokens.
+- Avoid repetitive sentence openings and mechanical transitions. Use natural variation in sentence length and syntax.
+- Do not force slang, mistakes, filler, fake personal experiences or unnatural "human" quirks.
+- Preserve paragraph boundaries when requested.
+- If the source is already clear, change only what genuinely improves readability.
+${options.preserveParagraphs ? "- Keep the same paragraph order and blank-line structure." : ""}
+${options.preserveCitations ? "- Protected tokens such as ⟦VYNTRO_KEEP_0⟧ must be reproduced exactly." : ""}`;
+    const context = previousTail ? `The previous section ended with: ${previousTail}\nContinue naturally without repeating it.\n\n` : "";
+    let result = await humanizerCall(env, system, context + protectedChunk.text, provider || "");
+    provider = result.provider;
+    let rewritten = humanizerRestore(result.content, protectedChunk.kept);
+    if (options.depth === "deep") {
+      const polishSystem = `Polish this rewritten passage for ${style}. Preserve every fact and citation. Do not add information. Keep the same paragraph structure and return only the polished passage.`;
+      const polished = await humanizerCall(env, polishSystem, rewritten, provider);
+      provider = polished.provider;
+      rewritten = polished.content;
+      rewritten = humanizerRestore(rewritten, protectedChunk.kept);
+    }
+    output.push(rewritten.trim());
+    previousTail = rewritten.trim().slice(-500);
+  }
+  return {text:output.join(options.preserveParagraphs ? "\n\n" : "\n"),chunks:chunks.length,provider};
+}
+
 export { UnoRoom, VyntroProfile, VyntroGlobal };
 
 export default {
@@ -932,6 +1083,29 @@ export default {
       const id = env.VYNTRO_PROFILE_DO.idFromName(String(user.id));
       const stub = env.VYNTRO_PROFILE_DO.get(id);
       return stub.fetch("https://profile/", {method:"POST",body:JSON.stringify({user,action:"award",achievement:body.achievement})});
+    }
+
+
+    if (url.pathname === "/api/humanize" && request.method === "POST") {
+      try {
+        const user = await requireTelegramUser(request, env);
+        if (!user) return Response.json({ok:false,error:"Open VYNTRO inside Telegram to use the protected AI service."},{status:401});
+        const body = await request.json().catch(() => ({}));
+        const text = String(body.text || "").replace(/\r/g, "").trim();
+        if (!text) return Response.json({ok:false,error:"Paste some text first."},{status:400});
+        if (text.length > 80000) return Response.json({ok:false,error:"This run supports up to 80,000 characters. Split a larger document into sections."},{status:413});
+        const result = await humanizeLongText(env, text, {
+          style:String(body.style || "natural"),
+          depth:String(body.depth || "balanced"),
+          length:String(body.length || "preserve"),
+          preserveCitations:body.preserveCitations !== false,
+          preserveParagraphs:body.preserveParagraphs !== false
+        });
+        return Response.json({ok:true,...result,inputCharacters:text.length});
+      } catch (error) {
+        console.error("Humanizer error:", error);
+        return Response.json({ok:false,error:String(error?.message || error)},{status:500});
+      }
     }
 
     if (url.pathname === "/api/ai" && request.method === "POST") {
