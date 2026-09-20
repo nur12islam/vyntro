@@ -51,7 +51,17 @@ button{width:100%;border:0;border-radius:14px;padding:11px 13px;background:#f3f3
 <div class="status" id="status">VYNTRO v0.2 • Online</div><div class="nav-note">Built for Telegram • More tools are coming.</div>
 </main>
 <script>
-const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();const u=tg.initDataUnsafe?.user;if(u)document.querySelector("#status").textContent="VYNTRO v0.1 • "+(u.first_name||"Telegram user")}
+const tg=window.Telegram?.WebApp;
+if(tg){
+  tg.ready();tg.expand();
+  const u=tg.initDataUnsafe?.user;
+  if(u)document.querySelector("#status").textContent="VYNTRO v0.2 • "+(u.first_name||"Telegram user");
+  const startParam=tg.initDataUnsafe?.start_param||"";
+  if(startParam.startsWith("uno_")){
+    const room=startParam.slice(4).toUpperCase();
+    if(/^[A-Z2-9]{5}$/.test(room)) location.replace("./games/uno/?room="+room);
+  }
+}
 document.querySelector("#report").onclick=()=>{tg?.HapticFeedback?.impactOccurred("light");location.href="./utilities/report-writer/"}
 </script>
 </body>
