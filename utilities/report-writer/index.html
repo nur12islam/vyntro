@@ -90,7 +90,7 @@ header,aside{display:none!important}
 </aside>
 <main id="preview"></main>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.6.1/build/index.umd.js"></script>
 <script>
@@ -250,195 +250,62 @@ function safeFileName(){
   return raw.replace(/[^a-z0-9]+/gi,"-").replace(/^-+|-+$/g,"").slice(0,80) || "VYNTRO-Report";
 }
 
-function setExportBusy(id,busy,label){
-  const b=$(id);
-  b.disabled=busy;
-  b.style.opacity=busy?".65":"1";
-  b.textContent=busy?"⏳ Generating…":label;
+function exportPayload(type){
+  return {
+    type,
+    title:$("title").value,
+    assessment:$("assessment").value,
+    department:$("department").value,
+    university:$("university").value,
+    student:$("student").value,
+    semester:$("semester").value,
+    align:$("align").value,
+    fontSize:$("fontSize").value,
+    lineSpacing:$("lineSpacing").value,
+    summary:$("summary").value,
+    report:$("report").value,
+    refs:$("refs").value
+  };
 }
 
-async function exportPDF(){
-  setExportBusy("pdfBtn",true,"📄 Export PDF");
+async function downloadExport(type,buttonId,defaultLabel){
+  const b=$(buttonId);
+  b.disabled=true;
+  b.style.opacity=".65";
+  b.textContent="⏳ Generating…";
   try{
-    const pages=[...document.querySelectorAll(".preview")];
-    if(!pages.length) throw new Error("Nothing to export.");
-
-    const {jsPDF}=window.jspdf;
-    const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4",compress:true});
-
-    for(let i=0;i<pages.length;i++){
-      if(i>0) pdf.addPage("a4","portrait");
-
-      const canvas=await html2canvas(pages[i],{
-        scale:2,
-        useCORS:true,
-        backgroundColor:"#ffffff",
-        logging:false,
-        width:pages[i].scrollWidth,
-        height:pages[i].scrollHeight,
-        windowWidth:pages[i].scrollWidth,
-        windowHeight:pages[i].scrollHeight
-      });
-
-      const img=canvas.toDataURL("image/jpeg",0.94);
-      pdf.addImage(img,"JPEG",0,0,210,297,undefined,"FAST");
-    }
-
-    pdf.save(safeFileName()+".pdf");
-  }catch(err){
-    console.error(err);
-    alert("PDF export failed. Please try again.");
-  }finally{
-    setExportBusy("pdfBtn",false,"📄 Export PDF");
-  }
-}
-
-function docxAlignment(value){
-  const A=window.docx.AlignmentType;
-  return value==="center"?A.CENTER:value==="right"?A.RIGHT:value==="justify"?A.JUSTIFIED:A.LEFT;
-}
-
-function docxLineSpacing(value){
-  return Math.round(parseFloat(value)*240);
-}
-
-function addDocxParagraphs(children,text,options){
-  const paragraphs=splitParagraphs(text);
-  for(const value of paragraphs){
-    children.push(new docx.Paragraph({
-      alignment:options.alignment,
-      spacing:{line:options.line,after:200},
-      indent:options.indent?{firstLine:720}:undefined,
-      widowControl:true,
-      children:[new docx.TextRun({
-        text:value,
-        font:"Times New Roman",
-        size:options.size*2
-      })]
-    }));
-  }
-}
-
-async function exportDOCX(){
-  setExportBusy("docxBtn",true,"📝 Export DOCX");
-  try{
-    if(!window.docx) throw new Error("DOCX library did not load.");
-
-    const {
-      Document,
-      Packer,
-      Paragraph,
-      TextRun,
-      AlignmentType,
-      PageBreak
-    }=window.docx;
-
-    const fs=parseFloat($("fontSize").value);
-    const ls=docxLineSpacing($("lineSpacing").value);
-    const align=docxAlignment($("align").value);
-    const children=[];
-
-    children.push(new Paragraph({
-      alignment:AlignmentType.CENTER,
-      spacing:{before:4200,after:900,line:ls},
-      children:[new TextRun({
-        text:$("title").value.trim(),
-        bold:true,
-        font:"Times New Roman",
-        size:fs*2
-      })]
-    }));
-
-    children.push(new Paragraph({
-      alignment:AlignmentType.CENTER,
-      spacing:{after:700,line:ls},
-      children:[new TextRun({
-        text:$("assessment").value.trim()+"\n"+
-             $("department").value.trim()+"\n"+
-             $("university").value.trim(),
-        font:"Times New Roman",
-        size:fs*2
-      })]
-    }));
-
-    children.push(new Paragraph({
-      alignment:AlignmentType.CENTER,
-      spacing:{before:700,after:0,line:ls},
-      children:[new TextRun({
-        text:"Submitted by",
-        font:"Times New Roman",
-        size:fs*2
-      })]
-    }));
-
-    children.push(new Paragraph({
-      alignment:AlignmentType.CENTER,
-      spacing:{after:700,line:ls},
-      children:[new TextRun({
-        text:$("student").value.trim()+"\n"+$("semester").value.trim(),
-        bold:true,
-        font:"Times New Roman",
-        size:fs*2
-      })]
-    }));
-
-    const sections=[
-      ["Executive Summary",$("summary").value,false],
-      ["Report",$("report").value,false],
-      ["References",$("refs").value,true]
-    ];
-
-    for(const [heading,text,isRefs] of sections){
-      if(!splitParagraphs(text).length) continue;
-
-      children.push(new Paragraph({
-        pageBreakBefore:true,
-        alignment:align,
-        spacing:{after:180,line:ls},
-        children:[new TextRun({
-          text:heading,
-          bold:true,
-          font:"Times New Roman",
-          size:(fs+2)*2
-        })]
-      }));
-
-      addDocxParagraphs(children,text,{
-        alignment:isRefs?AlignmentType.LEFT:AlignmentType.JUSTIFIED,
-        line:ls,
-        size:fs,
-        indent:!isRefs
-      });
-    }
-
-    const doc=new Document({
-      sections:[{
-        properties:{
-          page:{
-            size:{width:11906,height:16838},
-            margin:{top:1417,right:1247,bottom:1134,left:1417}
-          }
-        },
-        children
-      }]
+    const response=await fetch("/api/export",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(exportPayload(type))
     });
-
-    const blob=await Packer.toBlob(doc);
+    if(!response.ok){
+      let message="Export failed.";
+      try{const j=await response.json();if(j.error) message=j.error}catch(_){}
+      throw new Error(message);
+    }
+    const blob=await response.blob();
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;
-    a.download=safeFileName()+".docx";
+    a.download=safeFileName()+"."+type;
+    a.style.display="none";
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
   }catch(err){
     console.error(err);
-    alert("DOCX export failed. Please try again.");
+    alert((type==="pdf"?"PDF":"DOCX")+" export failed: "+(err.message||"Unknown error"));
   }finally{
-    setExportBusy("docxBtn",false,"📝 Export DOCX");
+    b.disabled=false;
+    b.style.opacity="1";
+    b.textContent=defaultLabel;
   }
 }
+
+function exportPDF(){ return downloadExport("pdf","pdfBtn","📄 Export PDF"); }
+function exportDOCX(){ return downloadExport("docx","docxBtn","📝 Export DOCX"); }
 
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand()}
