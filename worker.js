@@ -297,6 +297,101 @@ async function makePDF(data) {
   return pdf.save();
 }
 
+async function validateTelegramInitData(initData, token) {
+  if (!initData || !token) return null;
+
+  const params = new URLSearchParams(initData);
+  const receivedHash = params.get("hash");
+  const authDate = Number(params.get("auth_date") || 0);
+  if (!receivedHash || !authDate) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - authDate) > 24 * 60 * 60) return null;
+
+  const dataCheckString = [...params.entries()]
+    .filter(([key]) => key !== "hash")
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\\n");
+
+  const encoder = new TextEncoder();
+  const webAppKey = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode("WebAppData"),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const secretKey = await crypto.subtle.sign(
+    "HMAC",
+    webAppKey,
+    encoder.encode(token)
+  );
+
+  const dataKey = await crypto.subtle.importKey(
+    "raw",
+    secretKey,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const expected = new Uint8Array(await crypto.subtle.sign(
+    "HMAC",
+    dataKey,
+    encoder.encode(dataCheckString)
+  ));
+
+  const actual = new Uint8Array(
+    receivedHash.match(/.{1,2}/g)?.map(x => parseInt(x, 16)) || []
+  );
+  if (actual.length !== expected.length) return null;
+
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected[i] ^ actual[i];
+  if (diff !== 0) return null;
+
+  const user = params.get("user");
+  if (!user) return null;
+
+  try {
+    const parsed = JSON.parse(user);
+    return parsed?.id ? String(parsed.id) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function sendGeneratedDocumentToTelegram(env, chatId, bytes, fileName, mimeType) {
+  const token = env?.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) throw new Error("Telegram export delivery is not configured.");
+
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append(
+    "document",
+    new Blob([bytes], { type: mimeType }),
+    fileName
+  );
+  form.append("caption", `📄 VYNTRO Report Writer\\n\\n${fileName}`);
+
+  const response = await fetch(`${TELEGRAM_API}/bot${token}/sendDocument`, {
+    method: "POST",
+    body: form
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram sendDocument failed: ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  const result = await response.json();
+  if (!result?.ok) {
+    throw new Error(result?.description || "Telegram rejected the document.");
+  }
+
+  return result;
+}
+
 async function makeDOCX(data) {
   const fs = Math.max(10, Math.min(18, Number(data.fontSize) || 12));
   const line = Math.round((Number(data.lineSpacing) || 2) * 240);
@@ -421,22 +516,53 @@ export default {
       try {
         const data = await request.json();
         const type = data.type === "docx" ? "docx" : "pdf";
-        if (type === "pdf") {
-          const bytes = await makePDF(data);
-          return new Response(bytes, { headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `attachment; filename="${cleanName(data.title)}.pdf"`,
-            "Cache-Control": "no-store"
-          }});
+        const fileName = `${cleanName(data.title)}.${type}`;
+        const mimeType = type === "pdf"
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+        const bytes = type === "pdf"
+          ? await makePDF(data)
+          : await makeDOCX(data);
+
+        // Telegram Mini Apps run inside a WebView where ordinary browser
+        // download links are unreliable. When launched by Telegram, validate
+        // initData server-side and deliver the generated file directly to the
+        // authenticated user's bot chat.
+        const telegramUserId = await validateTelegramInitData(
+          data.telegramInitData,
+          env?.TELEGRAM_BOT_TOKEN
+        );
+
+        if (telegramUserId) {
+          await sendGeneratedDocumentToTelegram(
+            env,
+            telegramUserId,
+            bytes,
+            fileName,
+            mimeType
+          );
+          return Response.json({
+            ok: true,
+            delivered: "telegram",
+            fileName
+          });
         }
-        const blob = await makeDOCX(data);
-        return new Response(blob, { headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "Content-Disposition": `attachment; filename="${cleanName(data.title)}.docx"`,
-          "Cache-Control": "no-store"
-        }});
+
+        return new Response(bytes, {
+          headers: {
+            "Content-Type": mimeType,
+            "Content-Disposition": `attachment; filename="${fileName}"`,
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
       } catch (error) {
-        return Response.json({ error: String(error?.message || error) }, { status: 500 });
+        console.error("Export error:", error);
+        return Response.json(
+          { ok: false, error: String(error?.message || error) },
+          { status: 500 }
+        );
       }
     }
 
