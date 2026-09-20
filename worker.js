@@ -906,6 +906,7 @@ async function humanizeLongText(env, text, options) {
   };
 
   const style = styleMap[options.style] || styleMap.natural;
+  const styleSample = String(options.styleSample || "").trim().slice(0, 5000);
   const depth = depthMap[options.depth] || depthMap.balanced;
   const length = lengthMap[options.length] || lengthMap.preserve;
   let previousTail = "";
@@ -934,6 +935,7 @@ Editing approach:
 - Keep transitions meaningful rather than adding transition words just to connect sentences.
 - Keep first-person or impersonal voice consistent with the source; do not invent a personal voice.
 - If the source already sounds natural, preserve parts of it instead of rewriting everything.
+${styleSample ? `- Use the user sample below only as a voice reference. Do not copy its wording, facts or ideas; imitate only stylistic tendencies such as rhythm, formality and sentence preference.\nUSER STYLE SAMPLE:\n${styleSample}` : ""}
 - Return ONLY the rewritten passage. No explanation, heading, label or preface.
 ${options.preserveParagraphs ? "- Preserve the paragraph order and blank-line boundaries." : "- You may adjust paragraph boundaries when it clearly improves readability."}
 ${options.preserveCitations ? "- Protected tokens such as ⟦VYNTRO_KEEP_0⟧ must be reproduced exactly and in the same logical location." : ""}`;
@@ -1173,7 +1175,8 @@ export default {
           depth:String(body.depth || "balanced"),
           length:String(body.length || "preserve"),
           preserveCitations:body.preserveCitations !== false,
-          preserveParagraphs:body.preserveParagraphs !== false
+          preserveParagraphs:body.preserveParagraphs !== false,
+          styleSample:String(body.styleSample || "")
         });
         const quality = humanizerLocalGuard(text, result.text, {
           preserveCitations:body.preserveCitations !== false
@@ -1234,83 +1237,3 @@ export default {
           response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO Quiz Arena"},body:JSON.stringify({model:"openrouter/free",temperature:.7,messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
         }
         if(!response.ok){const t=await response.text();return Response.json({ok:false,error:`${provider} request failed: ${response.status} ${t.slice(0,200)}`},{status:502});}
-        const data=await response.json();
-        const raw=data?.choices?.[0]?.message?.content;
-        let parsed;
-        try{parsed=JSON.parse(raw)}catch(_){return Response.json({ok:false,error:"Quiz AI returned invalid JSON. Try again."},{status:502});}
-        if(!Array.isArray(parsed?.questions)||parsed.questions.length!==count) return Response.json({ok:false,error:"Quiz AI returned an unexpected number of questions."},{status:502});
-        const questions=parsed.questions.map(q=>({question:String(q.question),options:Array.isArray(q.options)?q.options.slice(0,4).map(String):[],answer:Number(q.answer)}));
-        if(questions.some(q=>q.options.length!==4||q.answer<0||q.answer>3||!q.question)) return Response.json({ok:false,error:"Quiz AI returned an invalid question format."},{status:502});
-        return Response.json({ok:true,provider,questions});
-      } catch(error) {
-        return Response.json({ok:false,error:String(error?.message||error)},{status:500});
-      }
-    }
-
-    if (url.pathname === "/api/export" && request.method === "POST") {
-      try {
-        const data = await request.json();
-        const type = data.type === "docx" ? "docx" : "pdf";
-        const fileName = `${cleanName(data.title)}.${type}`;
-        const mimeType = type === "pdf"
-          ? "application/pdf"
-          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-        const bytes = type === "pdf"
-          ? await makePDF(data)
-          : await makeDOCX(data);
-
-        // Telegram Mini Apps run inside a WebView where ordinary browser
-        // download links are unreliable. When launched by Telegram, validate
-        // initData server-side and deliver the generated file directly to the
-        // authenticated user's bot chat.
-        const telegramUserId = await validateTelegramInitData(
-          data.telegramInitData,
-          env?.TELEGRAM_BOT_TOKEN
-        );
-
-        if (telegramUserId) {
-          await sendGeneratedDocumentToTelegram(
-            env,
-            telegramUserId,
-            bytes,
-            fileName,
-            mimeType
-          );
-          return Response.json({
-            ok: true,
-            delivered: "telegram",
-            fileName
-          });
-        }
-
-        return new Response(bytes, {
-          headers: {
-            "Content-Type": mimeType,
-            "Content-Disposition": `attachment; filename="${fileName}"`,
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*"
-          }
-        });
-      } catch (error) {
-        console.error("Export error:", error);
-        return Response.json(
-          { ok: false, error: String(error?.message || error) },
-          { status: 500 }
-        );
-      }
-    }
-
-    return env.ASSETS.fetch(request);
-  },
-
-  async scheduled(controller, env) {
-    try {
-      await ensureTelegramWebhook(env);
-      await runStatusCheck(env, controller.scheduledTime || Date.now());
-    } catch (error) {
-      console.error("VYNTRO status check failed:", error);
-      controller.noRetry();
-    }
-  }
-};
