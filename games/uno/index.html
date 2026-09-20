@@ -155,10 +155,12 @@ async function action(body){
  }catch(err){toast("⚠️ "+err.message)}
 }
 document.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>chooseColor(b.dataset.color));
-$("drawBtn").onclick=()=>action({action:"draw"});
+$("drawBtn").onclick=()=>computerMode?localPlayerAction("draw"):action({action:"draw"});
 $("unoBtn").onclick=()=>action({action:"uno"});
-$("newBtn").onclick=()=>{code="";game=null;clearInterval(pollTimer);try{socket?.close()}catch(_){}history.replaceState(null,"",location.pathname);location.reload()};
+$("newBtn").onclick=()=>{computerMode=false;code="";game=null;clearInterval(pollTimer);clearTimeout(botTimer);try{socket?.close()}catch(_){}history.replaceState(null,"",location.pathname);location.reload()};
+$("computerBtn").onclick=startComputerGame;
 $("createBtn").onclick=createRoom;
+$("joinBtn").onclick=joinRoom;
 $("inviteBtn").onclick=async()=>{
  if(!code){toast("Create a room first.");return}
  try{
