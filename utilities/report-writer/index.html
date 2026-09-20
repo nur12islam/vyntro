@@ -6,22 +6,58 @@
 <title>Report Writer • VYNTRO</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#080808;color:#eee;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#080808;color:#eee;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 header{height:58px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #252525;position:sticky;top:0;background:#0c0c0cee;backdrop-filter:blur(18px);z-index:10}
-header a{color:#ddd;text-decoration:none;margin-right:18px}header b{font-size:15px}header span{margin-left:auto;color:#777;font-size:11px}
-.layout{display:grid;grid-template-columns:380px 1fr;min-height:calc(100vh - 58px)}aside{padding:16px;overflow:auto;max-height:calc(100vh - 58px);border-right:1px solid #222}
-label{display:block;color:#aaa;font-size:12px;margin:12px 0}input,textarea,select{width:100%;margin-top:6px;background:#151515;color:#eee;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}textarea{resize:vertical}h2{font-size:14px;margin-top:20px}
-.format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.format-grid label{margin:8px 0}.format-note{color:#777;font-size:11px;line-height:1.4}
-button{width:100%;padding:12px;border:0;border-radius:11px;margin-top:14px;font-weight:700;cursor:pointer}button.secondary{background:#191919;color:#ddd;border:1px solid #333}
+header a{color:#ddd;text-decoration:none;margin-right:18px}
+header b{font-size:15px}
+header span{margin-left:auto;color:#777;font-size:11px}
+.layout{display:grid;grid-template-columns:380px 1fr;min-height:calc(100vh - 58px)}
+aside{padding:16px;overflow:auto;max-height:calc(100vh - 58px);border-right:1px solid #222}
+label{display:block;color:#aaa;font-size:12px;margin:12px 0}
+input,textarea,select{width:100%;margin-top:6px;background:#151515;color:#eee;border:1px solid #333;border-radius:10px;padding:10px;font:inherit}
+textarea{resize:vertical}
+h2{font-size:14px;margin-top:20px}
+.format-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.format-grid label{margin:8px 0}
+.format-note{color:#777;font-size:11px;line-height:1.4}
+button{width:100%;padding:12px;border:0;border-radius:11px;margin-top:14px;font-weight:700;cursor:pointer}
+button.secondary{background:#191919;color:#ddd;border:1px solid #333}
 #preview{padding:25px;overflow:auto;background:radial-gradient(circle at 80% 0,#1a1a1a,transparent 35%)}
-.preview{width:210mm;min-height:297mm;background:#fff;color:#111;margin:0 auto 25px;padding:25mm 22mm 20mm 25mm;position:relative;box-shadow:0 3px 22px #0005}.no{position:absolute;right:18mm;top:12mm;color:#777;opacity:.72;font:11pt "Times New Roman",serif}.title{text-align:center;padding-top:45mm}.title h1{font-weight:bold;max-width:150mm;margin:0 auto 18mm}.meta,.submitted,.section,.p,.ref{font-family:"Times New Roman",serif}.meta,.submitted{line-height:1.7}.submitted{margin-top:18mm}.section{font-weight:bold;margin:0 0 8pt}.p{text-align:justify;text-indent:1.27cm;margin:0}.ref{text-align:left;margin:0;text-indent:0}.refs{padding-top:30mm}
-@media(max-width:850px){.layout{grid-template-columns:1fr}aside{max-height:none;border:0}#preview{overflow:auto}.preview{margin-left:0}}
-@media print{body{background:#fff}header,aside{display:none}.layout{display:block}#preview{padding:0;background:#fff}.preview{margin:0;box-shadow:none;page-break-after:always}.preview:last-child{page-break-after:auto}}
+.preview{width:210mm;height:297mm;background:#fff;color:#111;margin:0 auto 25px;padding:25mm 22mm 20mm 25mm;position:relative;box-shadow:0 3px 22px #0005;overflow:hidden}
+.no{position:absolute;right:18mm;top:12mm;color:#777;opacity:.72;font:11pt "Times New Roman",serif}
+.title{text-align:center;padding-top:45mm}
+.title h1{font-weight:bold;max-width:150mm;margin:0 auto 18mm;overflow-wrap:break-word}
+.meta,.submitted,.section,.p,.ref{font-family:"Times New Roman",serif}
+.meta,.submitted{line-height:1.7}
+.submitted{margin-top:18mm}
+.section{font-weight:bold;margin:0 0 8pt}
+.p,.ref{display:block;width:100%;max-width:100%;white-space:normal;overflow-wrap:break-word;word-break:normal}
+.p{text-align:justify;text-indent:1.27cm;margin:0 0 10pt}
+.p.continuation{text-indent:0}
+.ref{text-align:left;margin:0 0 8pt;text-indent:0}
+.refs{padding-top:30mm}
+.content-page{padding-top:25mm}
+@media(max-width:850px){
+.layout{grid-template-columns:1fr}
+aside{max-height:none;border:0}
+#preview{overflow:auto}
+.preview{margin-left:0}
+}
+@media print{
+body{background:#fff}
+header,aside{display:none}
+.layout{display:block}
+#preview{padding:0;background:#fff}
+.preview{margin:0;box-shadow:none;page-break-after:always}
+.preview:last-child{page-break-after:auto}
+}
 </style>
 </head>
 <body>
 <header><a href="../../">← VYNTRO</a><b>Report Writer</b><span>Utility</span></header>
-<div class="layout"><aside>
+<div class="layout">
+<aside>
 <h2>Report Details</h2>
 <label>Report Title<textarea id="title" rows="5" placeholder="Enter your report title..."></textarea></label>
 <label>Assessment Type<input id="assessment" placeholder="e.g. SEC – Internal Assessment"></label>
@@ -29,30 +65,195 @@ button{width:100%;padding:12px;border:0;border-radius:11px;margin-top:14px;font-
 <label>University / Institution<input id="university" placeholder="Enter university name..."></label>
 <label>Student Name<input id="student" placeholder="Enter your full name..."></label>
 <label>Year / Semester<input id="semester" placeholder="e.g. UG 2nd Year – 3rd Semester"></label>
-<h2>Heading Alignment</h2><select id="align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
-<h2>Text Formatting</h2><div class="format-grid">
+<h2>Heading Alignment</h2>
+<select id="align"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+<h2>Text Formatting</h2>
+<div class="format-grid">
 <label>Font Size<select id="fontSize"><option>10</option><option>11</option><option selected>12</option><option>13</option><option>14</option><option>16</option><option>18</option></select></label>
-<label>Line Spacing<select id="lineSpacing"><option>1</option><option>1.15</option><option>1.5</option><option selected>2</option><option>2.2</option><option>2.5</option><option>3</option></select></label></div>
-<p class="format-note">Formatting updates the A4 preview instantly. Blank lines separate paragraphs.</p>
-<h2>Executive Summary</h2><textarea id="summary" rows="14" placeholder="Write your executive summary here..."></textarea>
-<h2>Report</h2><textarea id="report" rows="20" placeholder="Write your report here..."></textarea>
-<h2>References</h2><textarea id="refs" rows="12" placeholder="Enter your references here..."></textarea>
-<button onclick="window.print()">Print / Save PDF</button><button class="secondary" onclick="clearAll()">Clear All</button>
-</aside><main id="preview"></main></div>
+<label>Line Spacing<select id="lineSpacing"><option>1</option><option>1.15</option><option>1.5</option><option selected>2</option><option>2.2</option><option>2.5</option><option>3</option></select></label>
+</div>
+<p class="format-note">Paragraphs are separated by blank lines. Each new paragraph gets a first-line indent, and long text automatically continues onto additional A4 pages.</p>
+<h2>Executive Summary</h2>
+<textarea id="summary" rows="14" placeholder="Write your executive summary here..."></textarea>
+<h2>Report</h2>
+<textarea id="report" rows="20" placeholder="Write your report here..."></textarea>
+<h2>References</h2>
+<textarea id="refs" rows="12" placeholder="Enter your references here..."></textarea>
+<button onclick="window.print()">Print / Save PDF</button>
+<button class="secondary" onclick="clearAll()">Clear All</button>
+</aside>
+<main id="preview"></main>
+</div>
 <script>
 const $=id=>document.getElementById(id);
-function esc(v){return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-function surname(){const p=$("student").value.trim().split(/\s+/);return p.length&&p[0]?p[p.length-1]:""}
-function label(n){const s=surname();return s?esc(s)+" "+n:String(n)}
-function paras(text,ref,fs,ls){return String(text||"").split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).map(x=>'<p class="'+(ref?"ref":"p")+'" style="font-size:'+fs+'pt;line-height:'+ls+'">'+esc(x).replace(/\n/g,"<br>")+"</p>").join("")}
-function render(){const fs=parseFloat($("fontSize").value),ls=parseFloat($("lineSpacing").value),a=$("align").value;
-const common='<div class="no">'+label(1)+'</div>';
-$("preview").innerHTML='<section class="preview title">'+common+'<h1 style="font-size:'+fs+'pt;line-height:1.35">'+esc($("title").value)+'</h1><div class="meta" style="font-size:'+fs+'pt">'+esc($("assessment").value)+'<br>'+esc($("department").value)+'<br>'+esc($("university").value)+'</div><div class="submitted" style="font-size:'+fs+'pt">Submitted by<br><b>'+esc($("student").value)+'</b><br>'+esc($("semester").value)+'</div></section>'+
-'<section class="preview"><div class="no">'+label(2)+'</div><h2 class="section" style="text-align:'+a+';font-size:'+(fs+2)+'pt">Executive Summary</h2>'+paras($("summary").value,false,fs,ls)+'</section>'+
-'<section class="preview"><div class="no">'+label(3)+'</div><h2 class="section" style="text-align:'+a+';font-size:'+(fs+2)+'pt">Report</h2>'+paras($("report").value,false,fs,ls)+'</section>'+
-'<section class="preview refs"><div class="no">'+label(4)+'</div><h2 class="section" style="text-align:'+a+';font-size:'+(fs+2)+'pt">References</h2>'+paras($("refs").value,true,fs,ls)+'</section>'}
-function clearAll(){["title","assessment","department","university","student","semester","summary","report","refs"].forEach(id=>$(id).value="");$("align").value="left";$("fontSize").value="12";$("lineSpacing").value="2";render()}
-["title","assessment","department","university","student","semester","align","fontSize","lineSpacing","summary","report","refs"].forEach(id=>{$(id).addEventListener("input",render);$(id).addEventListener("change",render)})
-const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand()}render()
+
+function esc(v){
+  return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function surname(){
+  const p=$("student").value.trim().split(/\s+/);
+  return p.length&&p[0]?p[p.length-1]:"";
+}
+
+function label(n){
+  const s=surname();
+  return s?esc(s)+" "+n:String(n);
+}
+
+function splitParagraphs(text){
+  return String(text||"")
+    .replace(/\r/g,"")
+    .split(/\n\s*\n/)
+    .map(x=>x.trim())
+    .filter(Boolean);
+}
+
+function makePage(number, extraClass=""){
+  const page=document.createElement("section");
+  page.className="preview "+extraClass;
+  page.innerHTML='<div class="no">'+label(number)+'</div>';
+  $("preview").appendChild(page);
+  return page;
+}
+
+function addHeading(page, title, align, fs){
+  const h=document.createElement("h2");
+  h.className="section";
+  h.style.textAlign=align;
+  h.style.fontSize=(fs+2)+"pt";
+  h.textContent=title;
+  page.appendChild(h);
+}
+
+function fits(page){
+  return page.scrollHeight <= page.clientHeight + 1;
+}
+
+/*
+  Adds a paragraph without allowing text to run outside the A4 page.
+  If a paragraph is too long for one page, it is split at word boundaries
+  and the continuation continues on the next A4 page.
+*/
+function addParagraphFlow(text, page, ref, fs, ls, nextPageNumber){
+  const words=String(text).trim().split(/\s+/).filter(Boolean);
+  let currentPage=page;
+  let currentText="";
+  let firstChunk=true;
+
+  for(const word of words){
+    const candidate=currentText ? currentText+" "+word : word;
+    const p=document.createElement("p");
+    p.className=(ref?"ref":"p")+(firstChunk?"":" continuation");
+    p.style.fontSize=fs+"pt";
+    p.style.lineHeight=ls;
+    p.textContent=candidate;
+    currentPage.appendChild(p);
+
+    if(!fits(currentPage)){
+      currentPage.removeChild(p);
+
+      if(currentText){
+        const finalP=document.createElement("p");
+        finalP.className=(ref?"ref":"p")+(firstChunk?"":" continuation");
+        finalP.style.fontSize=fs+"pt";
+        finalP.style.lineHeight=ls;
+        finalP.textContent=currentText;
+        currentPage.appendChild(finalP);
+
+        currentPage=makePage(nextPageNumber.value++);
+        currentText="";
+        firstChunk=false;
+        const nextP=document.createElement("p");
+        nextP.className=(ref?"ref":"p")+" continuation";
+        nextP.style.fontSize=fs+"pt";
+        nextP.style.lineHeight=ls;
+        nextP.textContent=word;
+        currentPage.appendChild(nextP);
+        currentText=word;
+      }else{
+        // A single extremely long word: let the browser break it rather than overflow.
+        const longP=document.createElement("p");
+        longP.className=(ref?"ref":"p")+(firstChunk?"":" continuation");
+        longP.style.fontSize=fs+"pt";
+        longP.style.lineHeight=ls;
+        longP.style.overflowWrap="anywhere";
+        longP.textContent=word;
+        currentPage.appendChild(longP);
+        currentPage=makePage(nextPageNumber.value++);
+        currentText="";
+        firstChunk=false;
+      }
+    }else{
+      currentPage.removeChild(p);
+      currentText=candidate;
+    }
+  }
+
+  if(currentText){
+    const finalP=document.createElement("p");
+    finalP.className=(ref?"ref":"p")+(firstChunk?"":" continuation");
+    finalP.style.fontSize=fs+"pt";
+    finalP.style.lineHeight=ls;
+    finalP.textContent=currentText;
+    currentPage.appendChild(finalP);
+  }
+
+  return currentPage;
+}
+
+function renderTextSection(title, text, ref, align, fs, ls, pageNumber){
+  let page=makePage(pageNumber.value++,"content-page");
+  addHeading(page,title,align,fs);
+
+  for(const paragraph of splitParagraphs(text)){
+    page=addParagraphFlow(paragraph,page,ref,fs,ls,pageNumber);
+  }
+}
+
+function renderTitle(fs,pageNumber){
+  const section=makePage(pageNumber.value++,"title");
+  section.innerHTML+='<h1 style="font-size:'+fs+'pt;line-height:1.35">'+esc($("title").value)+'</h1>'+
+    '<div class="meta" style="font-size:'+fs+'pt">'+
+    esc($("assessment").value)+'<br>'+
+    esc($("department").value)+'<br>'+
+    esc($("university").value)+
+    '</div>'+
+    '<div class="submitted" style="font-size:'+fs+'pt">Submitted by<br><b>'+
+    esc($("student").value)+'</b><br>'+
+    esc($("semester").value)+'</div>';
+}
+
+function render(){
+  $("preview").innerHTML="";
+  const fs=parseFloat($("fontSize").value);
+  const ls=parseFloat($("lineSpacing").value);
+  const a=$("align").value;
+  const pageNumber={value:1};
+
+  renderTitle(fs,pageNumber);
+  renderTextSection("Executive Summary",$("summary").value,false,a,fs,ls,pageNumber);
+  renderTextSection("Report",$("report").value,false,a,fs,ls,pageNumber);
+  renderTextSection("References",$("refs").value,true,a,fs,ls,pageNumber);
+}
+
+function clearAll(){
+  ["title","assessment","department","university","student","semester","summary","report","refs"].forEach(id=>$(id).value="");
+  $("align").value="left";
+  $("fontSize").value="12";
+  $("lineSpacing").value="2";
+  render();
+}
+
+["title","assessment","department","university","student","semester","align","fontSize","lineSpacing","summary","report","refs"]
+.forEach(id=>{
+  $(id).addEventListener("input",render);
+  $(id).addEventListener("change",render);
+});
+
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand()}
+render();
 </script>
-</body></html>
+</body>
+</html>
