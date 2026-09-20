@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070707">
+<title>Humanize Text • VYNTRO</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#070707;--panel:#101010;--panel2:#151515;--line:#ffffff14;--muted:#8c8c8c;--text:#f4f4f4;--accent:#d9d9d9}
+html,body{margin:0;background:radial-gradient(circle at 20% 0,#191919 0,transparent 30%),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{min-height:100vh}
+header{height:60px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;background:#090909dd;backdrop-filter:blur(22px)}
+header a{color:#bbb;text-decoration:none;margin-right:14px}header b{font-size:15px}header span{margin-left:auto;color:#666;font-size:11px}
+.wrap{max-width:1100px;margin:auto;padding:18px 15px 50px}
+.hero{padding:18px 2px 20px}.eyebrow{font-size:11px;letter-spacing:.14em;color:#888;text-transform:uppercase}.hero h1{font-size:34px;margin:7px 0}.hero p{margin:0;color:#999;line-height:1.5;font-size:13px;max-width:760px}
+.workspace{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.55fr);gap:13px}
+.card{background:#ffffff07;border:1px solid var(--line);border-radius:22px;box-shadow:0 18px 55px #0006;overflow:hidden}
+.cardhead{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}.cardhead b{font-size:13px}.counter{margin-left:auto;color:#777;font-size:11px}
+textarea{display:block;width:100%;min-height:470px;resize:vertical;border:0;outline:0;background:#0b0b0b;color:#eee;padding:17px;font:14px/1.7 Georgia,"Times New Roman",serif}
+textarea::placeholder{color:#555}
+.controls{padding:15px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{margin-bottom:11px}.field label{display:block;color:#999;font-size:11px;margin-bottom:6px}
+select{width:100%;padding:11px;border:1px solid #ffffff14;border-radius:11px;background:#151515;color:#eee;outline:0}
+.check{display:flex;gap:9px;align-items:flex-start;padding:9px 0;color:#bbb;font-size:12px;line-height:1.4}.check input{accent-color:#fff;margin-top:2px}
+button{width:100%;border:0;border-radius:12px;padding:12px 14px;margin-top:8px;background:#eee;color:#111;font-weight:750;cursor:pointer}button.secondary{background:#171717;color:#ddd;border:1px solid #ffffff16}button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:5px}
+.status{padding:11px 15px;color:#8c8c8c;font-size:11px;min-height:18px}.progress{height:3px;background:#191919}.bar{height:100%;width:0;background:#eee;transition:width .25s}
+.output{margin-top:13px}.output textarea{min-height:500px;background:#0c0c0c}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.stat{padding:11px;border:1px solid var(--line);border-radius:12px;background:#ffffff05}.stat strong{display:block;font-size:15px}.stat span{color:#777;font-size:10px}
+.notice{padding:12px 14px;margin-top:10px;border:1px solid #ffffff10;border-radius:13px;background:#ffffff05;color:#858585;font-size:10px;line-height:1.5}
+@media(max-width:850px){.workspace{grid-template-columns:1fr}.row{grid-template-columns:1fr 1fr}textarea{min-height:360px}}
+@media(max-width:480px){.hero h1{font-size:29px}.row{grid-template-columns:1fr}.actions{grid-template-columns:1fr 1fr}.wrap{padding-left:11px;padding-right:11px}}
+</style>
+</head>
+<body>
+<header><a href="../../">← VYNTRO</a><b>Humanize Text</b><span>AI WRITING UTILITY</span></header>
+<main class="wrap">
+<section class="hero">
+<div class="eyebrow">✨ Advanced rewriting</div>
+<h1>Make long text sound natural.</h1>
+<p>Rewrite essays, reports, notes and long passages in one run. VYNTRO automatically splits large documents into context-aware sections and puts them back together in the original order.</p>
+</section>
+
+<section class="workspace">
+<div>
+<div class="card">
+<div class="cardhead"><b>Original text</b><span class="counter" id="inCount">0 words • 0 chars</span></div>
+<textarea id="input" placeholder="Paste your full text here…&#10;&#10;There is no tiny paragraph-only input box. Long documents are processed automatically in sections."></textarea>
+</div>
+<div class="stats">
+<div class="stat"><strong id="inWords">0</strong><span>INPUT WORDS</span></div>
+<div class="stat"><strong id="inParas">0</strong><span>PARAGRAPHS</span></div>
+<div class="stat"><strong id="inChars">0</strong><span>CHARACTERS</span></div>
+</div>
+</div>
+
+<div class="card">
+<div class="cardhead"><b>Rewrite controls</b><span style="color:#777;font-size:10px">LONG-FORM</span></div>
+<div class="controls">
+<div class="row">
+<div class="field"><label>Writing style</label><select id="style">
+<option value="natural">Natural</option>
+<option value="academic" selected>Academic</option>
+<option value="professional">Professional</option>
+<option value="conversational">Conversational</option>
+<option value="clear">Clear & concise</option>
+</select></div>
+<div class="field"><label>Rewrite depth</label><select id="depth">
+<option value="light">Light</option>
+<option value="balanced" selected>Balanced</option>
+<option value="deep">Deep</option>
+</select></div>
+</div>
+<div class="field"><label>Length</label><select id="length">
+<option value="preserve" selected>Keep roughly the same length</option>
+<option value="shorter">Slightly shorter</option>
+<option value="longer">Slightly more developed</option>
+</select></div>
+<label class="check"><input type="checkbox" id="citations" checked><span>Preserve citations, URLs, quotations and reference markers where possible.</span></label>
+<label class="check"><input type="checkbox" id="paragraphs" checked><span>Preserve paragraph order and paragraph boundaries.</span></label>
+<button id="run">✨ Humanize Text</button>
+<div class="actions">
+<button class="secondary" id="copy">Copy output</button>
+<button class="secondary" id="download">Download .txt</button>
+</div>
+<button class="secondary" id="clear">Clear</button>
+</div>
+<div class="progress"><div class="bar" id="bar"></div></div>
+<div class="status" id="status">Ready.</div>
+</div>
+</section>
+
+<section class="card output">
+<div class="cardhead"><b>Humanized result</b><span class="counter" id="outCount">0 words • 0 chars</span></div>
+<textarea id="output" readonly placeholder="Your rewritten text will appear here…"></textarea>
+</section>
+<div class="notice">VYNTRO Humanize is a writing and readability tool. It aims to preserve the author's meaning and improve natural flow; it does not guarantee any particular result from third-party AI-detection systems.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const tg=window.Telegram?.WebApp;
+tg?.ready();tg?.expand();
+
+function words(s){return String(s||"").trim()?String(s).trim().split(/\s+/).length:0}
+function paras(s){return String(s||"").split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean).length}
+function updateInput(){
+ const v=$("input").value;
+ $("inWords").textContent=words(v).toLocaleString();
+ $("inParas").textContent=paras(v).toLocaleString();
+ $("inChars").textContent=v.length.toLocaleString();
+ $("inCount").textContent=words(v).toLocaleString()+" words • "+v.length.toLocaleString()+" chars";
+}
+function updateOutput(){
+ const v=$("output").value;
+ $("outCount").textContent=words(v).toLocaleString()+" words • "+v.length.toLocaleString()+" chars";
+}
+$("input").addEventListener("input",updateInput);
+$("clear").onclick=()=>{$("input").value="";$("output").value="";$("status").textContent="Ready.";$("bar").style.width="0";updateInput();updateOutput()};
+$("copy").onclick=async()=>{
+ const v=$("output").value.trim();if(!v)return;
+ try{await navigator.clipboard.writeText(v);$("status").textContent="Copied to clipboard. ✓"}catch(_){$("output").select();document.execCommand("copy");$("status").textContent="Copied. ✓"}
+};
+$("download").onclick=()=>{
+ const v=$("output").value;if(!v)return;
+ const blob=new Blob([v],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="VYNTRO-Humanized.txt";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+$("run").onclick=async()=>{
+ const text=$("input").value.trim();
+ if(!text){$("status").textContent="Paste some text first.";return}
+ if(text.length>80000){$("status").textContent="This run is limited to 80,000 characters. Split a larger document into sections.";return}
+ if(!tg?.initData){$("status").textContent="Open VYNTRO inside Telegram to use the protected AI service.";return}
+ const btn=$("run");btn.disabled=true;btn.textContent="⏳ Rewriting…";$("output").value="";$("bar").style.width="4%";
+ try{
+   const res=await fetch("/api/humanize",{method:"POST",headers:{"Content-Type":"application/json","X-Telegram-Init-Data":tg.initData},body:JSON.stringify({
+     text,style:$("style").value,depth:$("depth").value,length:$("length").value,
+     preserveCitations:$("citations").checked,preserveParagraphs:$("paragraphs").checked
+   })});
+   const data=await res.json().catch(()=>({}));
+   if(!res.ok||!data.ok)throw new Error(data.error||"Humanization failed.");
+   $("output").value=data.text||"";updateOutput();$("bar").style.width="100%";
+   $("status").textContent="Complete • "+data.chunks+" sections • "+data.provider;
+ }catch(err){
+   $("status").textContent="Error: "+(err.message||"Unknown error");
+   $("bar").style.width="0";
+ }finally{btn.disabled=false;btn.textContent="✨ Humanize Text"}
+};
+updateInput();updateOutput();
+</script>
+</body>
+</html>
