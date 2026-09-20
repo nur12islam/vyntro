@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<title>VYNTRO • UNO</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#070707;--glass:#ffffff0b;--line:#ffffff18;--text:#f7f7f7;--muted:#929292}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#242424,transparent 42%),#070707;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+.app{max-width:900px;margin:auto;padding:16px 16px calc(28px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;justify-content:space-between}.back{color:#aaa;text-decoration:none}.brand{font-weight:800;letter-spacing:.12em}.pill{font-size:11px;color:#aaa;border:1px solid var(--line);padding:7px 10px;border-radius:99px;background:var(--glass)}
+h1{text-align:center;font-size:34px;letter-spacing:-.05em;margin:26px 0 3px}.sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:18px}
+.game{border:1px solid var(--line);border-radius:28px;background:#ffffff07;backdrop-filter:blur(24px);padding:16px;box-shadow:0 25px 80px #0008}
+.opponents{display:flex;justify-content:space-around;gap:10px;margin-bottom:15px}.op{font-size:12px;color:#aaa;text-align:center}.op b{display:block;color:#eee;font-size:17px;margin-bottom:3px}
+.table{min-height:245px;border:1px solid #ffffff12;border-radius:24px;background:radial-gradient(circle,#181818,#0d0d0d);display:flex;align-items:center;justify-content:center;gap:18px;position:relative}
+.center-label{position:absolute;top:12px;left:14px;font-size:10px;color:#666;letter-spacing:.12em;text-transform:uppercase}
+.card{width:62px;height:88px;border-radius:10px;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:27px;color:#fff;box-shadow:0 8px 20px #0008;user-select:none}
+.card.red{background:#e53935}.card.yellow{background:#f6c431;color:#111}.card.green{background:#2e9e5b}.card.blue{background:#2879d7}.card.wild{background:linear-gradient(135deg,#e53935 0 25%,#f6c431 25% 50%,#2e9e5b 50% 75%,#2879d7 75%)}
+.draw{width:62px;height:88px;border-radius:10px;background:repeating-linear-gradient(45deg,#171717,#171717 5px,#242424 5px,#242424 10px);border:3px solid #eee;display:grid;place-items:center;font-size:22px}
+.turn{text-align:center;margin:13px 0;color:#aaa;font-size:12px}.hand{display:flex;gap:8px;overflow-x:auto;padding:10px 3px 14px;min-height:108px;justify-content:center}.hand .card{flex:0 0 58px;height:82px;cursor:pointer;transition:.15s}.hand .card:hover{transform:translateY(-8px)}.hand .card.disabled{opacity:.35;cursor:not-allowed;transform:none}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions button{border:1px solid var(--line);background:#ffffff0b;color:#eee;padding:12px;border-radius:14px;font-weight:700}.actions button.primary{background:#eee;color:#111}
+.overlay{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:20px;z-index:20}.modal{max-width:360px;width:100%;border:1px solid var(--line);border-radius:24px;background:#151515;padding:22px;text-align:center}.modal h2{margin-top:0}.colors{display:grid;grid-template-columns:1fr 1fr;gap:9px}.colors button{padding:15px;border:0;border-radius:13px;font-weight:800}.red{background:#e53935;color:#fff}.yellow{background:#f6c431;color:#111}.green{background:#2e9e5b;color:#fff}.blue{background:#2879d7;color:#fff}
+.toast{text-align:center;color:#888;font-size:11px;min-height:16px;margin-top:10px}
+@media(max-width:500px){.table{min-height:220px}.card{width:56px;height:80px}.hand .card{flex-basis:54px;height:78px}.hand{justify-content:flex-start}.opponents{justify-content:space-between}}
+</style>
+</head>
+<body>
+<main class="app">
+<div class="top"><a class="back" href="../../">← VYNTRO</a><div class="brand">UNO</div><div class="pill" id="score">0 pts</div></div>
+<h1>UNO</h1><div class="sub">Classic-style VYNTRO card game</div>
+<section class="game">
+<div class="opponents"><div class="op"><b id="cpu1">7</b>🤖 Nova</div><div class="op"><b id="cpu2">7</b>🤖 Byte</div><div class="op"><b id="cpu3">7</b>🤖 Pixel</div></div>
+<div class="table"><span class="center-label" id="status">Your turn</span><div class="draw" id="draw">↻</div><div id="discard"></div></div>
+<div class="turn" id="turn">Tap a playable card</div>
+<div class="hand" id="hand"></div>
+<div class="actions"><button id="drawBtn" class="primary">Draw Card</button><button id="unoBtn">UNO!</button></div>
+<div class="toast" id="toast"></div>
+</section>
+</main>
+<div class="overlay" id="overlay"><div class="modal"><h2>Choose a colour</h2><p>Wild card played. Pick the next colour.</p><div class="colors"><button class="red" data-color="red">Red</button><button class="yellow" data-color="yellow">Yellow</button><button class="green" data-color="green">Green</button><button class="blue" data-color="blue">Blue</button></div></div></div>
+<script>
+const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand()}
+const colors=["red","yellow","green","blue"],values=["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2"];
+let deck=[],hand=[],discard=null,currentColor=null,locked=false,unoCalled=false,score=0;
+const $=id=>document.getElementById(id);
+function makeDeck(){let d=[];colors.forEach(c=>{values.forEach((v,i)=>{d.push({c,v});if(v!=="0")d.push({c,v})})});for(let i=0;i<4;i++){d.push({c:"wild",v:"wild"},{c:"wild",v:"+4"})}return d}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function cardEl(card,clickable=false){const e=document.createElement("div");e.className="card "+card.c;e.textContent=card.v==="skip"?"⊘":card.v==="reverse"?"↔":card.v;e.dataset.i=clickable?card.i:"";return e}
+function playable(c){return c.c==="wild"||c.c===currentColor||c.v===discard.v}
+function render(){
+ $("discard").innerHTML="";$("discard").appendChild(cardEl(discard));
+ $("hand").innerHTML="";
+ hand.forEach((c,i)=>{c.i=i;const e=cardEl(c,true);if(locked||!playable(c))e.classList.add("disabled");e.onclick=()=>play(i);$("hand").appendChild(e)});
+ $("score").textContent=score+" pts";$("turn").textContent=locked?"Waiting for opponent…":"Tap a playable card";
+}
+function start(){deck=shuffle(makeDeck());hand=deck.splice(0,7);discard=deck.pop();while(discard.c==="wild"){deck.unshift(discard);discard=deck.pop()}currentColor=discard.c;locked=false;render()}
+function refill(){if(deck.length)return;if(discard){const top=discard;deck=shuffle(window._oldDiscard||[]);window._oldDiscard=[];discard=top}}
+function play(i){
+ if(locked)return;const c=hand[i];if(!playable(c))return;
+ hand.splice(i,1);discard=c;currentColor=c.c==="wild"?null:c.c;
+ tg?.HapticFeedback?.impactOccurred("light");
+ if(hand.length===0){score+=100;toast("🎉 You won! New round starting…");setTimeout(start,900);return}
+ if(c.c==="wild"){locked=true;$("overlay").style.display="flex";render();return}
+ score+=c.v==="+2"?20:10;render();setTimeout(cpuTurn,650)
+}
+function chooseColor(c){currentColor=c;$("overlay").style.display="none";locked=false;render();setTimeout(cpuTurn,500)}
+document.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>chooseColor(b.dataset.color));
+function cpuTurn(){
+ if(hand.length===0)return;locked=true;render();
+ // Lightweight CPU: choose a playable card or draw.
+ const candidates=hand.filter(c=>c.c===currentColor||c.c==="wild"||c.v===discard.v);
+ if(candidates.length){const c=candidates[Math.floor(Math.random()*candidates.length)];discard=c;currentColor=c.c==="wild"?colors[Math.floor(Math.random()*4)]:c.c;toast("🤖 CPU played "+c.v)}
+ else toast("🤖 Opponent drew a card");
+ locked=false;render()
+}
+function drawCard(){if(locked)return;const c=deck.pop();if(!c){toast("Deck empty — reshuffling soon");return}hand.push(c);toast(playable(c)?"Card drawn — you can play it.":"Card drawn.");render()}
+function toast(t){$("toast").textContent=t;setTimeout(()=>{if($("toast").textContent===t)$("toast").textContent=""},1800)}
+$("drawBtn").onclick=drawCard;$("unoBtn").onclick=()=>{if(hand.length===1){unoCalled=true;score+=5;toast("🔥 UNO! +5 points")}else toast("You can call UNO when one card remains.")};
+start();
+</script>
+</body>
+</html>
