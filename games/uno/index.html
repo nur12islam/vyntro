@@ -45,7 +45,12 @@ button{font:inherit}.app{max-width:980px;margin:auto;padding:14px 15px calc(28px
 <div class="turn" id="turn">Tap a playable card</div>
 <div class="hand" id="hand"></div>
 <div class="actions"><button id="drawBtn" class="primary">Draw</button><button id="unoBtn">UNO!</button><button id="newBtn" class="danger">New Game</button></div>
-<div class="lobby"><button id="createBtn">👥 Create 4-Player Room</button><button id="inviteBtn">↗ Invite Players</button></div>
+<div class="lobby">
+<button id="computerBtn">🤖 Play with Computer</button>
+<button id="createBtn">👥 Play with Friends</button>
+<button id="inviteBtn">↗ Invite Players</button>
+<button id="joinBtn">🔑 Join Room</button>
+</div>
 <div class="toast" id="toast"></div>
 </section>
 </main>
@@ -57,6 +62,7 @@ const initData=tg?.initData||"";
 const me=tg?.initDataUnsafe?.user||{id:"guest-"+Math.random().toString(36).slice(2),first_name:"Player"};
 const colors=["red","yellow","green","blue"];
 let game=null, code=new URLSearchParams(location.search).get("room")?.toUpperCase()||"", pollTimer=null, socket=null, pendingWild=false;
+let computerMode=false, botTimer=null;
 const $=id=>document.getElementById(id);
 const name=()=>String(me.first_name||"Player").slice(0,24);
 async function api(path,body){
@@ -67,6 +73,83 @@ async function api(path,body){
 }
 function toast(t){$("toast").textContent=t;setTimeout(()=>{$("toast").textContent=""},2200)}
 function label(v){return v==="skip"?"⊘":v==="reverse"?"↔":v==="+2"?"＋2":v==="+4"?"＋4":v==="wild"?"✦":v}
+function makeLocalDeck(){
+ const colors=["red","yellow","green","blue"], values=["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2"], deck=[];
+ for(const c of colors){for(const v of values){deck.push({c,v});if(v!=="0")deck.push({c,v});}}
+ for(let i=0;i<4;i++){deck.push({c:"wild",v:"wild"},{c:"wild",v:"+4"});}
+ for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
+ return deck;
+}
+function localPlayable(c){
+ return !!game && (c.c==="wild"||c.c===game.currentColor||c.v===game.discard.v);
+}
+function localDraw(player){
+ if(!game.deck.length){
+   const keep=game.discard;
+   game.deck=game.used.slice(0,-1).sort(()=>Math.random()-.5);
+   game.used=[keep];
+ }
+ if(game.deck.length) game.players[player].hand.push(game.deck.pop());
+}
+function localAdvance(){
+ game.turn=(game.turn+game.direction+game.players.length)%game.players.length;
+}
+function startComputerGame(){
+ computerMode=true;clearInterval(pollTimer);clearTimeout(botTimer);
+ try{socket?.close()}catch(_){}
+ const deck=makeLocalDeck();
+ const players=[
+   {id:"human",name:name(),hand:deck.splice(0,7)},
+   {id:"bot1",name:"Nova 🤖",hand:deck.splice(0,7)},
+   {id:"bot2",name:"Pixel 🤖",hand:deck.splice(0,7)},
+   {id:"bot3",name:"Echo 🤖",hand:deck.splice(0,7)}
+ ];
+ let discard=deck.pop();
+ while(discard?.c==="wild"){deck.unshift(discard);discard=deck.pop();}
+ game={code:"COMPUTER",status:"playing",players,you:0,turn:0,discard,currentColor:discard.c,direction:1,uno:null,winner:null,deck,used:[discard]};
+ code="";
+ history.replaceState(null,"","?computer=1");
+ render();
+ toast("🤖 Computer match started");
+}
+function computerTurn(){
+ if(!computerMode||!game||game.winner!==null||game.turn===0)return;
+ const player=game.players[game.turn];
+ const playable=player.hand.map((c,i)=>({c,i})).filter(x=>localPlayable(x.c));
+ if(playable.length){
+   const normal=playable.find(x=>x.c.c!=="wild")||playable[0];
+   const c=player.hand.splice(normal.i,1)[0];
+   game.discard=c;game.used.push(c);
+   game.currentColor=c.c==="wild"?["red","yellow","green","blue"][Math.floor(Math.random()*4)]:c.c;
+   if(!player.hand.length){game.winner=game.turn;render();return;}
+   if(c.v==="skip") localAdvance();
+   if(c.v==="reverse"){game.direction*=-1;localAdvance();}
+   else localAdvance();
+ }else{
+   localDraw(game.turn);
+   localAdvance();
+ }
+ render();
+ maybeComputerTurn();
+}
+function maybeComputerTurn(){
+ clearTimeout(botTimer);
+ if(computerMode&&game&&game.turn!==0&&game.winner===null) botTimer=setTimeout(computerTurn,700);
+}
+function localPlayerPlay(index,color){
+ if(!computerMode||!game||game.turn!==0||game.winner!==null)return;
+ const c=game.players[0].hand[index];
+ if(!c||!localPlayable(c))return;
+ game.players[0].hand.splice(index,1);
+ game.discard=c;game.used.push(c);
+ game.currentColor=c.c==="wild"?(color||"red"):c.c;
+ if(!game.players[0].hand.length){game.winner=0;render();return;}
+ if(c.v==="skip") localAdvance();
+ else if(c.v==="reverse"){game.direction*=-1;localAdvance();}
+ else localAdvance();
+ render();
+ maybeComputerTurn();
+}
 function cardEl(c,click=false){
  const e=document.createElement("div");e.className="card "+c.c+(click?"":" small");
  const s=document.createElement("span");s.textContent=label(c.v);e.appendChild(s);return e;
@@ -136,6 +219,12 @@ function connectRealtime(){
  socket.onerror=()=>{try{socket?.close()}catch(_){}};
 }
 async function playCard(i,c){
+ if(computerMode){
+   if(game.turn!==0)return;
+   if(c.c==="wild"){pendingWild=i;$("overlay").style.display="flex";return;}
+   localPlayerPlay(i);
+   return;
+ }
  if(game.turn!==game.you)return;
  if(c.c==="wild"){
    pendingWild=i;$("overlay").style.display="flex";return;
@@ -146,6 +235,7 @@ async function chooseColor(color){
  $("overlay").style.display="none";
  if(pendingWild===false||pendingWild===null)return;
  const i=pendingWild;pendingWild=false;
+ if(computerMode){localPlayerPlay(i,color);return;}
  await action({action:"play",cardIndex:i,color});
 }
 async function action(body){
@@ -155,11 +245,16 @@ async function action(body){
  }catch(err){toast("⚠️ "+err.message)}
 }
 document.querySelectorAll("[data-color]").forEach(b=>b.onclick=()=>chooseColor(b.dataset.color));
-$("drawBtn").onclick=()=>computerMode?localPlayerAction("draw"):action({action:"draw"});
-$("unoBtn").onclick=()=>action({action:"uno"});
+$("drawBtn").onclick=()=>{
+ if(computerMode){if(game.turn===0&&!game.winner){localDraw(0);localAdvance();render();maybeComputerTurn();}}
+ else action({action:"draw"});
+};
+$("unoBtn").onclick=()=>computerMode?toast("UNO call noted 🤖"):action({action:"uno"});
 $("newBtn").onclick=()=>{computerMode=false;code="";game=null;clearInterval(pollTimer);clearTimeout(botTimer);try{socket?.close()}catch(_){}history.replaceState(null,"",location.pathname);location.reload()};
 $("computerBtn").onclick=startComputerGame;
+$("computerBtn").onclick=startComputerGame;
 $("createBtn").onclick=createRoom;
+$("joinBtn").onclick=joinRoom;
 $("joinBtn").onclick=joinRoom;
 $("inviteBtn").onclick=async()=>{
  if(!code){toast("Create a room first.");return}
