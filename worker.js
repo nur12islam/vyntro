@@ -112,7 +112,7 @@ async function runStatusCheck(env, scheduledTime = Date.now()) {
     info.tag ? `Tag: ${info.tag}` : null,
     `Checked: ${new Date(scheduledTime).toISOString()}`,
     "",
-    "VYNTRO • Create. Play. Explore."
+    "VYNTRO • Create. Play. Explore. 🚀"
   ].filter(Boolean).join("\n");
 
   return sendTelegramStatus(env, message);
