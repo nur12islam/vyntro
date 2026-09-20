@@ -673,6 +673,29 @@ export default {
       const stub=env.UNO_ROOM_DO.get(id);
       return stub.fetch("https://uno/join",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"join",code,playerId,name:body.name})});
     }
+    if (url.pathname === "/api/uno/invite" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const playerId = await validateTelegramInitData(body.telegramInitData, env?.TELEGRAM_BOT_TOKEN);
+      const code = String(body.code || "").trim().toUpperCase();
+      if (!playerId || !/^[A-Z2-9]{5}$/.test(code)) {
+        return Response.json({ ok: false, error: "Invalid Telegram session or room code." }, { status: 401 });
+      }
+
+      const token = env?.TELEGRAM_BOT_TOKEN;
+      if (!token) return Response.json({ ok: false, error: "Telegram bot is not configured." }, { status: 500 });
+
+      const meResponse = await fetch(`${TELEGRAM_API}/bot${token}/getMe`);
+      if (!meResponse.ok) return Response.json({ ok: false, error: "Could not resolve the VYNTRO bot username." }, { status: 502 });
+      const meData = await meResponse.json();
+      const username = meData?.result?.username;
+      if (!username) return Response.json({ ok: false, error: "VYNTRO bot username is unavailable." }, { status: 502 });
+
+      return Response.json({
+        ok: true,
+        code,
+        url: `https://t.me/${username}?startapp=uno_${code}`
+      });
+    }
     if (url.pathname === "/api/uno/action" && request.method === "POST") {
       const body = await request.json().catch(() => ({}));
       const playerId = await validateTelegramInitData(body.telegramInitData, env?.TELEGRAM_BOT_TOKEN);
