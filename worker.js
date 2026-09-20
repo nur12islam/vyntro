@@ -779,7 +779,7 @@ export default {
         let response, provider;
         if (groq) {
           provider="Groq";
-          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:.6,messages:[{role:"system",content:system},{role:"user",content:prompt}]})});
+          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"openai/gpt-oss-120b",temperature:.6,messages:[{role:"system",content:system},{role:"user",content:prompt}]})});
         } else {
           provider="OpenRouter";
           response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO AI"},body:JSON.stringify({model:"openrouter/free",temperature:.6,messages:[{role:"system",content:system},{role:"user",content:prompt}]})});
@@ -810,7 +810,7 @@ export default {
         let response, provider;
         if (groq) {
           provider="Groq";
-          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:.7,response_format:{type:"json_object"},messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
+          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"openai/gpt-oss-120b",temperature:.7,response_format:{type:"json_object"},messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
         } else {
           provider="OpenRouter";
           response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO Quiz Arena"},body:JSON.stringify({model:"openrouter/free",temperature:.7,messages:[{role:"system",content:"You generate accurate, concise quizzes."},{role:"user",content:prompt}]})});
