@@ -1,3 +1,4 @@
+import { DurableObject } from "cloudflare:workers";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from "docx";
 
@@ -389,9 +390,11 @@ function roomCode() {
   return Array.from(crypto.getRandomValues(new Uint8Array(5)), x => chars[x % chars.length]).join("");
 }
 
-class UnoRoom {
-  constructor(state) {
+class UnoRoom extends DurableObject {
+  constructor(state, env) {
+    super(state, env);
     this.state = state;
+    this.env = env;
     this.room = null;
   }
   async load() {
