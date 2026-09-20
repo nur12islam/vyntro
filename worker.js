@@ -446,6 +446,10 @@ class UnoRoom extends DurableObject {
       return Response.json({ok:true,game:this.publicState(pid)});
     }
     if (idx < 0) return Response.json({ok:false,error:"Player is not in this room."},{status:403});
+    if (action === "inviteCheck") {
+      if (idx < 0) return Response.json({ ok: false, error: "Player is not in this room." }, { status: 403 });
+      return Response.json({ ok: true });
+    }
     if (action === "state") return Response.json({ok:true,game:this.publicState(pid)});
     if (action === "play") {
       if (!this.room.started) return Response.json({ok:false,error:"Waiting for 4 players."},{status:409});
@@ -679,6 +683,17 @@ export default {
       const code = String(body.code || "").trim().toUpperCase();
       if (!playerId || !/^[A-Z2-9]{5}$/.test(code)) {
         return Response.json({ ok: false, error: "Invalid Telegram session or room code." }, { status: 401 });
+      }
+
+      const roomId = env.UNO_ROOM_DO.idFromName(code);
+      const roomStub = env.UNO_ROOM_DO.get(roomId);
+      const roomResponse = await roomStub.fetch("https://uno/invite-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "inviteCheck", playerId })
+      });
+      if (!roomResponse.ok) {
+        return Response.json({ ok: false, error: "UNO room not found or you are not a player in it." }, { status: 404 });
       }
 
       const token = env?.TELEGRAM_BOT_TOKEN;
