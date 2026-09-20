@@ -700,7 +700,7 @@ async function makeDOCX(data) {
   return Packer.toBlob(doc);
 }
 
-export { UnoRoom };
+export { UnoRoom, VyntroProfile };
 
 export default {
   async fetch(request, env) {
