@@ -48,6 +48,51 @@ async function sendTelegramStatus(env, message) {
   return { sent: true };
 }
 
+
+async function sendStartMessage(env, chatId, firstName = "there") {
+  const message = [
+    "✨ VYNTRO",
+    "",
+    `Hey ${firstName}! 👋`,
+    "",
+    "Create. Play. Explore.",
+    "",
+    "🛠️ Utilities",
+    "🎮 Games",
+    "🎉 Activities",
+    "📄 Document tools",
+    "",
+    "Tap the button below to open VYNTRO.",
+    "",
+    "🚀 More features are coming soon."
+  ].join("\n");
+
+  const token = env?.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return { sent: false, reason: "missing_secrets_or_chat_id" };
+
+  const response = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      disable_web_page_preview: true,
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🚀 Open VYNTRO", web_app: { url: "https://vyntro.xark0047.workers.dev/" } }
+        ]]
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Telegram API ${response.status}: ${body.slice(0, 300)}`);
+  }
+
+  return { sent: true };
+}
+
 async function runStatusCheck(env, scheduledTime = Date.now()) {
   const info = versionInfo(env);
   const versionCreated = info.timestamp ? Date.parse(info.timestamp) : NaN;
@@ -206,6 +251,17 @@ async function makeDOCX(data) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/telegram/start" && request.method === "POST") {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const chatId = body.chatId;
+        const firstName = body.firstName || "there";
+        return Response.json(await sendStartMessage(env, chatId, firstName));
+      } catch (error) {
+        return Response.json({ error: String(error?.message || error) }, { status: 500 });
+      }
+    }
 
     if (url.pathname === "/api/health" && request.method === "GET") {
       const info = versionInfo(env);
