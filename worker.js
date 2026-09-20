@@ -361,6 +361,144 @@ async function validateTelegramInitData(initData, token) {
   }
 }
 
+const UNO_COLORS = ["red", "yellow", "green", "blue"];
+const UNO_VALUES = ["0","1","2","3","4","5","6","7","8","9","skip","reverse","+2"];
+
+function makeUnoDeck() {
+  const d = [];
+  for (const color of UNO_COLORS) {
+    for (const value of UNO_VALUES) {
+      d.push({ c: color, v: value });
+      if (value !== "0") d.push({ c: color, v: value });
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    d.push({ c: "wild", v: "wild" }, { c: "wild", v: "+4" });
+  }
+  return d;
+}
+function shuffleDeck(d) {
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [d[i], d[j]] = [d[j], d[i]];
+  }
+  return d;
+}
+function roomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(5)), x => chars[x % chars.length]).join("");
+}
+
+class UnoRoom {
+  constructor(state) {
+    this.state = state;
+    this.room = null;
+  }
+  async load() {
+    if (!this.room) this.room = await this.state.storage.get("room");
+    return this.room;
+  }
+  async save() {
+    await this.state.storage.put("room", this.room);
+  }
+  publicState(playerId) {
+    const r = this.room;
+    return {
+      code: r.code,
+      status: r.started ? "playing" : "waiting",
+      players: r.players.map((p, i) => ({
+        seat: i, id: p.id, name: p.name, cards: p.hand.length, connected: p.connected
+      })),
+      you: r.players.findIndex(p => p.id === playerId),
+      turn: r.turn,
+      discard: r.discard,
+      currentColor: r.currentColor,
+      yourHand: r.players.find(p => p.id === playerId)?.hand || [],
+      direction: r.direction,
+      uno: r.uno || null,
+      winner: r.winner || null
+    };
+  }
+  async fetch(request) {
+    await this.load();
+    const url = new URL(request.url);
+    if (request.method !== "POST") return Response.json({ ok: true, game: this.room });
+    const body = await request.json().catch(() => ({}));
+    const action = body.action;
+    if (action === "create") {
+      if (this.room) return Response.json({ ok: false, error: "Room already exists." }, { status: 409 });
+      const player = { id: String(body.playerId), name: String(body.name || "Player").slice(0, 32), hand: [], connected: true };
+      this.room = { code: String(body.code), players: [player], deck: [], discard: null, currentColor: null, turn: 0, direction: 1, started: false, winner: null };
+      await this.save();
+      return Response.json({ ok: true, game: this.publicState(player.id) });
+    }
+    const pid = String(body.playerId || "");
+    const idx = this.room.players.findIndex(p => p.id === pid);
+    if (action === "join") {
+      if (idx >= 0) { this.room.players[idx].connected = true; await this.save(); return Response.json({ok:true,game:this.publicState(pid)}); }
+      if (this.room.players.length >= 4) return Response.json({ ok:false,error:"Room is full." }, {status:409});
+      this.room.players.push({id:pid,name:String(body.name||"Player").slice(0,32),hand:[],connected:true});
+      if (this.room.players.length === 4) this.startGame();
+      await this.save();
+      return Response.json({ok:true,game:this.publicState(pid)});
+    }
+    if (idx < 0) return Response.json({ok:false,error:"Player is not in this room."},{status:403});
+    if (action === "state") return Response.json({ok:true,game:this.publicState(pid)});
+    if (action === "play") {
+      if (!this.room.started) return Response.json({ok:false,error:"Waiting for 4 players."},{status:409});
+      if (this.room.turn !== idx) return Response.json({ok:false,error:"Not your turn."},{status:409});
+      const cardIndex = Number(body.cardIndex);
+      const card = this.room.players[idx].hand[cardIndex];
+      if (!card || !this.playable(card)) return Response.json({ok:false,error:"That card cannot be played."},{status:409});
+      this.room.players[idx].hand.splice(cardIndex,1);
+      this.room.discard=card;
+      if (card.c==="wild") {
+        if (!UNO_COLORS.includes(body.color)) return Response.json({ok:false,error:"Choose a colour."},{status:400});
+        this.room.currentColor=body.color;
+      } else this.room.currentColor=card.c;
+      if (this.room.players[idx].hand.length===0) this.room.winner=idx;
+      else this.advanceTurn(card);
+      await this.save();
+      return Response.json({ok:true,game:this.publicState(pid)});
+    }
+    if (action === "draw") {
+      if (!this.room.started || this.room.turn !== idx) return Response.json({ok:false,error:"Not your turn."},{status:409});
+      if (!this.room.deck.length) this.rebuildDeck();
+      this.room.players[idx].hand.push(this.room.deck.pop());
+      this.advanceTurn(null);
+      await this.save();
+      return Response.json({ok:true,game:this.publicState(pid)});
+    }
+    if (action === "uno") {
+      if (this.room.players[idx].hand.length === 1) this.room.uno=idx;
+      await this.save();
+      return Response.json({ok:true,game:this.publicState(pid)});
+    }
+    return Response.json({ok:false,error:"Unknown UNO action."},{status:400});
+  }
+  startGame() {
+    this.room.deck=shuffleDeck(makeUnoDeck());
+    this.room.players.forEach(p=>p.hand=this.room.deck.splice(0,7));
+    do { this.room.discard=this.room.deck.pop(); } while (this.room.discard.c==="wild");
+    this.room.currentColor=this.room.discard.c;
+    this.room.turn=0; this.room.started=true;
+  }
+  playable(card) {
+    return card.c==="wild" || card.c===this.room.currentColor || card.v===this.room.discard.v;
+  }
+  rebuildDeck() {
+    const oldDiscard=this.room.discard;
+    this.room.deck=shuffleDeck(makeUnoDeck().filter(c => c.c!==oldDiscard.c || c.v!==oldDiscard.v));
+  }
+  advanceTurn(card) {
+    if (!this.room.players.length) return;
+    let step = this.room.direction;
+    if (card?.v==="reverse") this.room.direction *= -1;
+    if (card?.v==="skip") step *= 2;
+    this.room.turn=(this.room.turn + step + this.room.players.length) % this.room.players.length;
+  }
+}
+
 async function sendGeneratedDocumentToTelegram(env, chatId, bytes, fileName, mimeType) {
   const token = env?.TELEGRAM_BOT_TOKEN;
   if (!token || !chatId) throw new Error("Telegram export delivery is not configured.");
@@ -438,7 +576,7 @@ async function makeDOCX(data) {
   return Packer.toBlob(doc);
 }
 
-export default {
+export { UnoRoom };\n\nexport default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
@@ -512,6 +650,33 @@ export default {
         headers: { "Cache-Control": "no-store" }
       });
     }
+    if (url.pathname === "/api/uno/create" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const playerId = await validateTelegramInitData(body.telegramInitData, env?.TELEGRAM_BOT_TOKEN);
+      if (!playerId) return Response.json({ok:false,error:"Open UNO from Telegram."},{status:401});
+      const code = roomCode();
+      const id = env.UNO_ROOM_DO.idFromName(code);
+      const stub = env.UNO_ROOM_DO.get(id);
+      return stub.fetch("https://uno/create", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"create",code,playerId,name:body.name})});
+    }
+    if (url.pathname === "/api/uno/join" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const playerId = await validateTelegramInitData(body.telegramInitData, env?.TELEGRAM_BOT_TOKEN);
+      if (!playerId || !body.code) return Response.json({ok:false,error:"Invalid Telegram session or room code."},{status:401});
+      const code=String(body.code).trim().toUpperCase();
+      const id=env.UNO_ROOM_DO.idFromName(code);
+      const stub=env.UNO_ROOM_DO.get(id);
+      return stub.fetch("https://uno/join",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"join",code,playerId,name:body.name})});
+    }
+    if (url.pathname === "/api/uno/action" && request.method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const playerId = await validateTelegramInitData(body.telegramInitData, env?.TELEGRAM_BOT_TOKEN);
+      if (!playerId || !body.code) return Response.json({ok:false,error:"Invalid Telegram session."},{status:401});
+      const id=env.UNO_ROOM_DO.idFromName(String(body.code).toUpperCase());
+      const stub=env.UNO_ROOM_DO.get(id);
+      return stub.fetch("https://uno/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,playerId,action:body.action})});
+    }
+
     if (url.pathname === "/api/export" && request.method === "POST") {
       try {
         const data = await request.json();
