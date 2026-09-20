@@ -851,10 +851,10 @@ function humanizerLocalGuard(original, rewritten, options = {}) {
   const issues = [];
   if (!output.trim()) issues.push("empty_output");
 
-  const urls = source.match(/https?:\\/\\/[^\\s<>"')]+/gi) || [];
-  const emails = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi) || [];
-  const years = source.match(/\\b(?:19|20)\\d{2}\\b/g) || [];
-  const importantNumbers = source.match(/\\b\\d+(?:[.,]\\d+)?%?\\b/g) || [];
+  const urls = source.match(/https?:\/\/[^\s<>"')]+/gi) || [];
+  const emails = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  const years = source.match(/\b(?:19|20)\d{2}\b/g) || [];
+  const importantNumbers = source.match(/\b\d+(?:[.,]\d+)?%?\b/g) || [];
   const mustKeep = options.preserveCitations !== false ? [...urls, ...emails, ...years] : [];
 
   for (const token of mustKeep) {
@@ -862,7 +862,7 @@ function humanizerLocalGuard(original, rewritten, options = {}) {
   }
 
   const sourceNumbers = new Set(importantNumbers);
-  const outputNumbers = new Set(output.match(/\\b\\d+(?:[.,]\\d+)?%?\\b/g) || []);
+  const outputNumbers = new Set(output.match(/\b\d+(?:[.,]\d+)?%?\b/g) || []);
   for (const token of sourceNumbers) {
     if (!outputNumbers.has(token) && !mustKeep.includes(token)) {
       issues.push("changed_number:" + token);
