@@ -845,6 +845,44 @@ async function humanizerCall(env, system, user, providerHint = "") {
   throw new Error(lastError || "No AI provider is configured.");
 }
 
+function humanizerLocalGuard(original, rewritten, options = {}) {
+  const source = String(original || "");
+  const output = String(rewritten || "");
+  const issues = [];
+  if (!output.trim()) issues.push("empty_output");
+
+  const urls = source.match(/https?:\\/\\/[^\\s<>"')]+/gi) || [];
+  const emails = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi) || [];
+  const years = source.match(/\\b(?:19|20)\\d{2}\\b/g) || [];
+  const importantNumbers = source.match(/\\b\\d+(?:[.,]\\d+)?%?\\b/g) || [];
+  const mustKeep = options.preserveCitations !== false ? [...urls, ...emails, ...years] : [];
+
+  for (const token of mustKeep) {
+    if (!output.includes(token)) issues.push("missing:" + token);
+  }
+
+  const sourceNumbers = new Set(importantNumbers);
+  const outputNumbers = new Set(output.match(/\\b\\d+(?:[.,]\\d+)?%?\\b/g) || []);
+  for (const token of sourceNumbers) {
+    if (!outputNumbers.has(token) && !mustKeep.includes(token)) {
+      issues.push("changed_number:" + token);
+    }
+  }
+
+  const sourceWords = source.trim() ? source.trim().split(/\\s+/).length : 0;
+  const outputWords = output.trim() ? output.trim().split(/\\s+/).length : 0;
+  const ratio = sourceWords ? outputWords / sourceWords : 1;
+  if (ratio < 0.45 || ratio > 1.8) issues.push("large_length_change");
+
+  return {
+    ok: issues.length === 0,
+    issues: issues.slice(0, 12),
+    sourceWords,
+    outputWords,
+    lengthRatio: Number(ratio.toFixed(3))
+  };
+}
+
 async function humanizeLongText(env, text, options) {
   const chunks = humanizerChunks(text, 6000);
   if (!chunks.length) throw new Error("No text supplied.");
@@ -1137,7 +1175,10 @@ export default {
           preserveCitations:body.preserveCitations !== false,
           preserveParagraphs:body.preserveParagraphs !== false
         });
-        return Response.json({ok:true,...result,inputCharacters:text.length});
+        const quality = humanizerLocalGuard(text, result.text, {
+          preserveCitations:body.preserveCitations !== false
+        });
+        return Response.json({ok:true,...result,quality,inputCharacters:text.length});
       } catch (error) {
         console.error("Humanizer error:", error);
         return Response.json({ok:false,error:String(error?.message || error)},{status:500});
@@ -1234,3 +1275,42 @@ export default {
             telegramUserId,
             bytes,
             fileName,
+            mimeType
+          );
+          return Response.json({
+            ok: true,
+            delivered: "telegram",
+            fileName
+          });
+        }
+
+        return new Response(bytes, {
+          headers: {
+            "Content-Type": mimeType,
+            "Content-Disposition": `attachment; filename="${fileName}"`,
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      } catch (error) {
+        console.error("Export error:", error);
+        return Response.json(
+          { ok: false, error: String(error?.message || error) },
+          { status: 500 }
+        );
+      }
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(controller, env) {
+    try {
+      await ensureTelegramWebhook(env);
+      await runStatusCheck(env, controller.scheduledTime || Date.now());
+    } catch (error) {
+      console.error("VYNTRO status check failed:", error);
+      controller.noRetry();
+    }
+  }
+};
