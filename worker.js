@@ -362,13 +362,46 @@ async function validateTelegramInitData(initData, token) {
   }
 }
 
-const ACHIEVEMENTS = {
-  first_login: { title: "Welcome to VYNTRO", icon: "👋", xp: 25 },
-  first_game: { title: "First Play", icon: "🎮", xp: 50 },
-  quiz_hero: { title: "Quiz Hero", icon: "🧠", xp: 100 },
-  snake_10: { title: "Snake Tamer", icon: "🐍", xp: 100 },
-  party_starter: { title: "Party Starter", icon: "🎉", xp: 75 }
+const XP_EVENTS = {
+  daily_visit:{xp:10,label:"Daily Visit"}, play:{xp:10,label:"Play"}, win:{xp:50,label:"Win"},
+  uno_win:{xp:100,label:"UNO Win"}, quiz_complete:{xp:25,label:"Quiz Complete"}, quiz_perfect:{xp:100,label:"Perfect Quiz"},
+  puzzle_complete:{xp:30,label:"Puzzle Complete"}, reaction_record:{xp:30,label:"Reaction Record"},
+  snake_10:{xp:50,label:"Snake 10+"}, snake_25:{xp:100,label:"Snake 25+"}, party:{xp:15,label:"Party Activity"},
+  social_play:{xp:20,label:"Social Play"}
 };
+const ACHIEVEMENTS = {
+  first_login:{title:"Welcome to VYNTRO",icon:"👋",xp:25}, first_game:{title:"First Play",icon:"🎮",xp:50},
+  first_win:{title:"First Victory",icon:"🏆",xp:75}, explorer:{title:"Explorer",icon:"🧭",xp:100},
+  quiz_hero:{title:"Quiz Hero",icon:"🧠",xp:100}, quiz_perfect:{title:"Perfect Score",icon:"🎯",xp:150},
+  snake_10:{title:"Snake Tamer",icon:"🐍",xp:100}, snake_25:{title:"Snake Pro",icon:"⚡",xp:150},
+  party_starter:{title:"Party Starter",icon:"🎉",xp:75}, social_butterfly:{title:"Social Butterfly",icon:"🦋",xp:150},
+  night_owl:{title:"Night Owl",icon:"🌙",xp:75}, streak_3:{title:"3-Day Streak",icon:"🔥",xp:75}, streak_7:{title:"7-Day Streak",icon:"🔥",xp:150}
+};
+const LEVEL_NAMES=["Newcomer","Explorer","Player","Challenger","VYNTRO Veteran","VYNTRO Elite","VYNTRO Legend"];
+function levelForXP(xp){let level=1,need=100,total=0;while(xp>=total+need){total+=need;level++;need=Math.round(need*1.35)}return level}
+function levelName(level){return LEVEL_NAMES[Math.min(level-1,LEVEL_NAMES.length-1)]||"VYNTRO Legend"}
+
+class VyntroGlobal extends DurableObject {
+  constructor(state,env){super(state,env);this.state=state}
+  async fetch(request){
+    const body=await request.json().catch(()=>({}));
+    if(body.action==="record"){
+      const players=(await this.state.storage.get("players"))||{};
+      const events=(await this.state.storage.get("events"))||[];
+      const id=String(body.user?.id||""); if(!id)return Response.json({ok:false,error:"Missing user."},{status:400});
+      const p=players[id]||{telegramId:id,firstName:"",username:"",xp:0,gamesPlayed:0,wins:0};
+      p.firstName=body.user.first_name||p.firstName;p.username=body.user.username||p.username;p.xp=Number(body.totalXP||p.xp);p.gamesPlayed=Number(body.gamesPlayed||p.gamesPlayed);p.wins=Number(body.wins||p.wins);p.updatedAt=Date.now();
+      players[id]=p;events.push({telegramId:id,firstName:p.firstName,username:p.username,xp:Number(body.xp||0),type:String(body.type||"event"),ts:Date.now()});
+      while(events.length>10000)events.shift();await this.state.storage.put("players",players);await this.state.storage.put("events",events);return Response.json({ok:true});
+    }
+    const players=(await this.state.storage.get("players"))||{},events=(await this.state.storage.get("events"))||[],period=String(body.period||"all"),now=Date.now();
+    const start=period==="daily"?now-86400000:period==="weekly"?now-7*86400000:period==="monthly"?now-30*86400000:0,scores={};
+    if(period==="all"){for(const p of Object.values(players))scores[p.telegramId]={...p,score:p.xp}}
+    else for(const e of events)if(e.ts>=start){if(!scores[e.telegramId])scores[e.telegramId]={telegramId:e.telegramId,firstName:e.firstName,username:e.username,score:0};scores[e.telegramId].score+=e.xp}
+    const list=Object.values(scores).sort((a,b)=>b.score-a.score).slice(0,100).map((p,i)=>({...p,rank:i+1,level:levelForXP(p.score)}));
+    return Response.json({ok:true,period,leaderboard:list});
+  }
+}
 
 function telegramUserFromInitData(initData) {
   const params = new URLSearchParams(initData || "");
@@ -405,8 +438,15 @@ class VyntroProfile extends DurableObject {
         photoUrl: user.photo_url || "",
         xp: 25,
         level: 1,
+        levelName: "Newcomer",
         gamesPlayed: 0,
+        wins: 0,
+        stats: {},
+        lastEvents: {},
+        activitiesTried: [],
         achievements: ["first_login"],
+        streak: 1,
+        lastActiveDate: new Date().toISOString().slice(0,10),
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
@@ -430,17 +470,27 @@ class VyntroProfile extends DurableObject {
     const p = await this.load(user);
 
     if (body.action === "award") {
-      const key = String(body.achievement || "");
-      const a = ACHIEVEMENTS[key];
-      if (!a) return Response.json({ok:false,error:"Unknown achievement."},{status:400});
-      if (!p.achievements.includes(key)) {
-        p.achievements.push(key);
-        p.xp += a.xp;
-        p.gamesPlayed += key === "first_game" ? 1 : 0;
-        p.level = Math.floor(p.xp / 250) + 1;
-        p.updatedAt = Date.now();
-        await this.state.storage.put("profile", p);
+      const key=String(body.achievement||""),a=ACHIEVEMENTS[key];
+      if(!a)return Response.json({ok:false,error:"Unknown achievement."},{status:400});
+      if(!p.achievements.includes(key)){p.achievements.push(key);p.xp+=a.xp;}
+    }
+    if(body.action==="event"){
+      const type=String(body.type||""),event=XP_EVENTS[type];
+      if(!event)return Response.json({ok:false,error:"Unknown XP event."},{status:400});
+      const now=Date.now(),today=new Date(now).toISOString().slice(0,10),cooldown=type==="daily_visit"?86400000:type==="play"?1800000:0,last=Number(p.lastEvents[type]||0);
+      if(!cooldown||now-last>=cooldown){
+        p.xp+=event.xp;p.lastEvents[type]=now;p.stats[type]=(p.stats[type]||0)+1;
+        if(type==="play")p.gamesPlayed++;if(type==="win"||type==="uno_win")p.wins++;
+        const game=String(body.game||"");if(game&&!p.activitiesTried.includes(game))p.activitiesTried.push(game);
+        if(p.lastActiveDate!==today){const prev=new Date(now-86400000).toISOString().slice(0,10);p.streak=p.lastActiveDate===prev?(p.streak||0)+1:1;p.lastActiveDate=today;}
       }
+      const unlock=(key)=>{if(!p.achievements.includes(key)){p.achievements.push(key);p.xp+=ACHIEVEMENTS[key].xp}};
+      if(type==="snake_10")unlock("snake_10");if(type==="snake_25")unlock("snake_25");
+      if(type==="quiz_complete"||type==="quiz_perfect")unlock("quiz_hero");if(type==="quiz_perfect")unlock("quiz_perfect");
+      if(type==="party"||type==="social_play")unlock("party_starter");
+      if(p.gamesPlayed>=1)unlock("first_game");if(p.wins>=1)unlock("first_win");if(p.activitiesTried.length>=5)unlock("explorer");
+      if(p.streak>=3)unlock("streak_3");if(p.streak>=7)unlock("streak_7");
+      if(new Date(now).getHours()<5)unlock("night_owl");
     }
 
     return Response.json({ok:true,profile:p,achievements:ACHIEVEMENTS});
@@ -700,7 +750,7 @@ async function makeDOCX(data) {
   return Packer.toBlob(doc);
 }
 
-export { UnoRoom, VyntroProfile };
+export { UnoRoom, VyntroProfile, VyntroGlobal };
 
 export default {
   async fetch(request, env) {
@@ -859,6 +909,20 @@ export default {
       const stub = env.VYNTRO_PROFILE_DO.get(id);
       const response = await stub.fetch("https://profile/", {method:"POST",body:JSON.stringify({user})});
       return response;
+    }
+
+    if (url.pathname === "/api/progression/event" && request.method === "POST") {
+      const user=await requireTelegramUser(request,env);if(!user)return Response.json({ok:false,error:"Telegram authentication required."},{status:401});
+      const body=await request.json().catch(()=>({})),id=env.VYNTRO_PROFILE_DO.idFromName(String(user.id)),stub=env.VYNTRO_PROFILE_DO.get(id);
+      const response=await stub.fetch("https://profile/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user,action:"event",type:body.type,game:body.game})});
+      const data=await response.json();if(!data.ok)return Response.json(data,{status:response.status});
+      const global=env.VYNTRO_GLOBAL_DO.get(env.VYNTRO_GLOBAL_DO.idFromName("global")),xpEvent=XP_EVENTS[String(body.type||"")];
+      await global.fetch("https://global/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"record",user,totalXP:data.profile.xp,gamesPlayed:data.profile.gamesPlayed,wins:data.profile.wins,xp:xpEvent?.xp||0,type:body.type})});
+      return Response.json(data);
+    }
+    if (url.pathname === "/api/leaderboard" && request.method === "GET") {
+      const period=String(url.searchParams.get("period")||"all"),global=env.VYNTRO_GLOBAL_DO.get(env.VYNTRO_GLOBAL_DO.idFromName("global"));
+      return global.fetch("https://global/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"leaderboard",period})});
     }
 
     if (url.pathname === "/api/achievement" && request.method === "POST") {
