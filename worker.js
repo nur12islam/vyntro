@@ -136,6 +136,34 @@ async function handleTelegramUpdate(env, update) {
   return { ok: true, ignored: true };
 }
 
+async function ensureTelegramWebhook(env) {
+  const token = env?.TELEGRAM_BOT_TOKEN;
+  if (!token) return { configured: false, reason: "missing_token" };
+
+  const webhookUrl = "https://vyntro.xark0047.workers.dev/api/telegram";
+  const infoResponse = await fetch(`${TELEGRAM_API}/bot${token}/getWebhookInfo`);
+  if (!infoResponse.ok) throw new Error(`Telegram getWebhookInfo failed: ${infoResponse.status}`);
+
+  const info = await infoResponse.json();
+  if (info?.result?.url === webhookUrl) return { configured: true, changed: false };
+
+  const setResponse = await fetch(`${TELEGRAM_API}/bot${token}/setWebhook`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: webhookUrl,
+      allowed_updates: ["message", "my_chat_member"]
+    })
+  });
+
+  if (!setResponse.ok) {
+    const body = await setResponse.text();
+    throw new Error(`Telegram setWebhook failed: ${setResponse.status}: ${body.slice(0, 300)}`);
+  }
+
+  return { configured: true, changed: true };
+}
+
 async function runStatusCheck(env, scheduledTime = Date.now()) {
   const info = versionInfo(env);
   const versionCreated = info.timestamp ? Date.parse(info.timestamp) : NaN;
@@ -363,6 +391,7 @@ export default {
 
   async scheduled(controller, env) {
     try {
+      await ensureTelegramWebhook(env);
       await runStatusCheck(env, controller.scheduledTime || Date.now());
     } catch (error) {
       console.error("VYNTRO status check failed:", error);
