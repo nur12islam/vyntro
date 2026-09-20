@@ -775,23 +775,23 @@ export default {
         const groq = env?.GROQ_API_KEY;
         const openrouter = env?.OPENROUTER_API_KEY;
         if (!groq && !openrouter) return Response.json({ok:false,error:"VYNTRO AI is not configured."},{status:503});
-        const system = "You are VYNTRO AI, a friendly concise companion inside a Telegram mini app. You can suggest VYNTRO games, party activities, puzzles, Quiz Arena topics, and help structure academic reports. Never claim to have started a room or game unless an API action actually did it. Keep answers practical and fun.";
+        const system = "You are VYNTRO AI inside a Telegram mini app. Reply concisely and warmly. You can recommend or launch VYNTRO destinations. If the user asks to play a game, quiz, puzzle, party activity, or use Report Writer, return a short helpful message and a machine-readable action on a separate line in exactly this format: ACTION: {\"type\":\"open\",\"path\":\"./.../\"}. Valid paths include ./games/uno/, ./games/snake/, ./games/2048/, ./games/tic-tac-toe/, ./activities/quiz-arena/, ./party/, ./puzzles/, ./utilities/report-writer/. Otherwise omit ACTION.";
         let response, provider;
         if (groq) {
           provider="Groq";
-          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:.7,messages:[{role:"system",content:system},{role:"user",content:prompt}]} )});
+          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:.6,messages:[{role:"system",content:system},{role:"user",content:prompt}]})});
         } else {
           provider="OpenRouter";
-          response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO AI"},body:JSON.stringify({model:"openrouter/free",temperature:.7,messages:[{role:"system",content:system},{role:"user",content:prompt}]} )});
+          response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO AI"},body:JSON.stringify({model:"openrouter/free",temperature:.6,messages:[{role:"system",content:system},{role:"user",content:prompt}]})});
         }
-        if (!response.ok) {
-          const t=await response.text();
-          return Response.json({ok:false,error:`${provider} request failed: ${response.status} ${t.slice(0,180)}`},{status:502});
-        }
+        if (!response.ok) { const t=await response.text(); return Response.json({ok:false,error:`${provider} request failed: ${response.status} ${t.slice(0,180)}`},{status:502}); }
         const data=await response.json();
-        const reply=data?.choices?.[0]?.message?.content;
-        if(!reply) return Response.json({ok:false,error:"AI returned an empty response."},{status:502});
-        return Response.json({ok:true,provider,reply:String(reply)});
+        const raw=String(data?.choices?.[0]?.message?.content||"");
+        if(!raw) return Response.json({ok:false,error:"AI returned an empty response."},{status:502});
+        const m=raw.match(/ACTION:\s*(\{.*\})\s*$/s);
+        let reply=raw, action=null;
+        if(m){ try { action=JSON.parse(m[1]); reply=raw.slice(0,m.index).trim(); } catch(_){} }
+        return Response.json({ok:true,provider,reply,action});
       } catch(error) {
         return Response.json({ok:false,error:String(error?.message||error)},{status:500});
       }
