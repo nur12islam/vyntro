@@ -32,19 +32,19 @@ button{width:100%;border:0;border-radius:14px;padding:11px 13px;background:#f3f3
 .feature{grid-column:1/-1;min-height:155px}
 .feature h2{font-size:22px}
 .section-title{margin-top:28px}
-.nav-note{margin-top:12px;text-align:center;color:#666;font-size:11px}
+.profileCard{margin:8px 0 18px;padding:14px 16px;border:1px solid var(--line);border-radius:22px;background:var(--card);display:flex;align-items:center;gap:12px}.profileBig{width:46px;height:46px;border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;font-weight:900;overflow:hidden}.profileBig img{width:100%;height:100%;object-fit:cover}.profileInfo{min-width:0;flex:1}.profileInfo strong{display:block}.profileInfo small{display:block;color:#888;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.xp{font-size:11px;color:#aaa;text-align:right}.nav-note{margin-top:12px;text-align:center;color:#666;font-size:11px}
 @media(max-width:520px){.feature{grid-column:auto}}
 </style>
 </head>
 <body>
 <main class="app">\n<div class="topbar"><div class="brandmark">V</div><div class="profile"><span class="avatar" id="avatar">V</span><span id="profileName">VYNTRO</span></div></div>
-<section class="hero"><div class="eyebrow">VYNTRO</div><h1>Create. Play. Explore.</h1><p>A multipurpose space inside Telegram.</p></section>
+<section class="profileCard"><div class="profileBig" id="profileAvatar">V</div><div class="profileInfo"><strong id="profileTitle">Telegram profile</strong><small id="profileHandle">Sign in through Telegram to save XP & achievements.</small></div><div class="xp" id="xp">XP 0<br>Lv 1</div></section><section class="hero"><div class="eyebrow">VYNTRO</div><h1>Create. Play. Explore.</h1><p>A multipurpose space inside Telegram.</p></section>
 <div class="section-title">Utilities</div>
 <section class="grid">
 <article class="card"><div class="icon">📝</div><h2>Report Writer</h2><p>Create structured academic reports with an A4-ready preview.</p><button id="report">Open</button></article>
 <article class="card openable" id="aiCard"><div class="icon">🤖</div><h2>VYNTRO AI</h2><p>Your AI companion for games, puzzles, parties and reports.</p><button id="aiBtn">✨ Open AI</button></article>
 </section>
-<div class="section-title">Games</div>
+<div class="section-title">Profile & Achievements</div><section class="grid"><article class="card openable" id="profileCard"><div class="icon">👤</div><h2>Your Profile</h2><p>Telegram-linked profile, XP, games and achievements.</p><button id="profileBtn">View Profile</button></article></section><div class="section-title">Games</div>
 <section class="grid">
 <article class="card openable" id="unoCard"><div class="icon">🃏</div><h2>UNO</h2><p>Play a modern 4-player UNO match with friends.</p><button id="uno">🎴 Play UNO</button></article>
 <article class="card openable" id="snakeCard"><div class="icon">🐍</div><h2>Snake</h2><p>Classic arcade snake with touch controls.</p><button id="snake">Play</button></article>
@@ -67,6 +67,8 @@ if(tg){
     if(/^[A-Z2-9]{5}$/.test(room)) location.replace("./games/uno/?room="+room);
   }
 }
+async function syncProfile(){if(!tg?.initData)return;try{const r=await fetch("/api/profile",{headers:{"X-Telegram-Init-Data":tg.initData}});const d=await r.json();if(!d.ok)return;const p=d.profile;document.querySelector("#profileTitle").textContent=p.firstName||"Telegram user";document.querySelector("#profileHandle").textContent=p.username?"@"+p.username:"Telegram account connected";document.querySelector("#xp").innerHTML="XP "+p.xp+"<br>Lv "+p.level;if(p.photoUrl)document.querySelector("#profileAvatar").innerHTML='<img src="'+p.photoUrl+'" alt="">';else document.querySelector("#profileAvatar").textContent=(p.firstName||"V").slice(0,1).toUpperCase()}catch(_){}}syncProfile();
+document.querySelector("#profileBtn").onclick=()=>location.href="./profile/";document.querySelector("#profileCard").onclick=(e)=>{if(e.target.closest("button"))return;location.href="./profile/"};
 document.querySelector("#report").onclick=()=>{tg?.HapticFeedback?.impactOccurred("light");location.href="./utilities/report-writer/"}
 document.querySelector("#uno").onclick=()=>{tg?.HapticFeedback?.impactOccurred("medium");location.href="./games/uno/"};
 document.querySelector("#unoCard").onclick=(e)=>{if(e.target.closest("button"))return;tg?.HapticFeedback?.impactOccurred("light");location.href="./games/uno/"};
