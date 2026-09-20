@@ -396,6 +396,7 @@ class UnoRoom extends DurableObject {
     this.state = state;
     this.env = env;
     this.room = null;
+    this.sockets = new Map();
   }
   async load() {
     if (!this.room) this.room = await this.state.storage.get("room");
@@ -403,6 +404,15 @@ class UnoRoom extends DurableObject {
   }
   async save() {
     await this.state.storage.put("room", this.room);
+  }
+  broadcast() {
+    for (const [socket, playerId] of this.sockets) {
+      try {
+        socket.send(JSON.stringify({ type: "state", game: this.publicState(playerId) }));
+      } catch (_) {
+        this.sockets.delete(socket);
+      }
+    }
   }
   publicState(playerId) {
     const r = this.room;
@@ -425,6 +435,20 @@ class UnoRoom extends DurableObject {
   async fetch(request) {
     await this.load();
     const url = new URL(request.url);
+    if (request.method === "GET" && request.headers.get("Upgrade") === "websocket") {
+      const playerId = String(request.headers.get("X-Vyntro-Player") || "");
+      if (!playerId || !this.room?.players?.some(p => p.id === playerId)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+      server.accept();
+      this.sockets.set(server, playerId);
+      server.addEventListener("close", () => this.sockets.delete(server));
+      server.addEventListener("error", () => this.sockets.delete(server));
+      server.send(JSON.stringify({ type: "state", game: this.publicState(playerId) }));
+      return new Response(null, { status: 101, webSocket: client });
+    }
     if (request.method !== "POST") return Response.json({ ok: true, game: this.room });
     const body = await request.json().catch(() => ({}));
     const action = body.action;
@@ -433,6 +457,7 @@ class UnoRoom extends DurableObject {
       const player = { id: String(body.playerId), name: String(body.name || "Player").slice(0, 32), hand: [], connected: true };
       this.room = { code: String(body.code), players: [player], deck: [], discard: null, currentColor: null, turn: 0, direction: 1, started: false, winner: null };
       await this.save();
+      this.broadcast();
       return Response.json({ ok: true, game: this.publicState(player.id) });
     }
     const pid = String(body.playerId || "");
@@ -443,6 +468,7 @@ class UnoRoom extends DurableObject {
       this.room.players.push({id:pid,name:String(body.name||"Player").slice(0,32),hand:[],connected:true});
       if (this.room.players.length === 4) this.startGame();
       await this.save();
+      this.broadcast();
       return Response.json({ok:true,game:this.publicState(pid)});
     }
     if (idx < 0) return Response.json({ok:false,error:"Player is not in this room."},{status:403});
@@ -466,6 +492,7 @@ class UnoRoom extends DurableObject {
       if (this.room.players[idx].hand.length===0) this.room.winner=idx;
       else this.advanceTurn(card);
       await this.save();
+      this.broadcast();
       return Response.json({ok:true,game:this.publicState(pid)});
     }
     if (action === "draw") {
@@ -474,11 +501,13 @@ class UnoRoom extends DurableObject {
       this.room.players[idx].hand.push(this.room.deck.pop());
       this.advanceTurn(null);
       await this.save();
+      this.broadcast();
       return Response.json({ok:true,game:this.publicState(pid)});
     }
     if (action === "uno") {
       if (this.room.players[idx].hand.length === 1) this.room.uno=idx;
       await this.save();
+      this.broadcast();
       return Response.json({ok:true,game:this.publicState(pid)});
     }
     return Response.json({ok:false,error:"Unknown UNO action."},{status:400});
@@ -710,6 +739,21 @@ export default {
         code,
         url: `https://t.me/${username}?startapp=uno_${code}`
       });
+    }
+    if (url.pathname === "/api/uno/ws" && request.method === "GET") {
+      const playerId = await validateTelegramInitData(
+        url.searchParams.get("initData") || "",
+        env?.TELEGRAM_BOT_TOKEN
+      );
+      const code = String(url.searchParams.get("code") || "").trim().toUpperCase();
+      if (!playerId || !/^[A-Z2-9]{5}$/.test(code)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      const id = env.UNO_ROOM_DO.idFromName(code);
+      const stub = env.UNO_ROOM_DO.get(id);
+      const headers = new Headers(request.headers);
+      headers.set("X-Vyntro-Player", playerId);
+      return stub.fetch("https://uno/ws", { method: "GET", headers });
     }
     if (url.pathname === "/api/uno/action" && request.method === "POST") {
       const body = await request.json().catch(() => ({}));
