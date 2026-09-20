@@ -767,6 +767,36 @@ export default {
       return stub.fetch("https://uno/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,playerId,action:body.action})});
     }
 
+    if (url.pathname === "/api/ai" && request.method === "POST") {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const prompt = String(body.prompt || "").trim().slice(0, 4000);
+        if (!prompt) return Response.json({ ok:false, error:"Ask VYNTRO something first." }, { status:400 });
+        const groq = env?.GROQ_API_KEY;
+        const openrouter = env?.OPENROUTER_API_KEY;
+        if (!groq && !openrouter) return Response.json({ok:false,error:"VYNTRO AI is not configured."},{status:503});
+        const system = "You are VYNTRO AI, a friendly concise companion inside a Telegram mini app. You can suggest VYNTRO games, party activities, puzzles, Quiz Arena topics, and help structure academic reports. Never claim to have started a room or game unless an API action actually did it. Keep answers practical and fun.";
+        let response, provider;
+        if (groq) {
+          provider="Groq";
+          response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${groq}`},body:JSON.stringify({model:"llama-3.3-70b-versatile",temperature:.7,messages:[{role:"system",content:system},{role:"user",content:prompt}]} )});
+        } else {
+          provider="OpenRouter";
+          response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${openrouter}`,"HTTP-Referer":"https://vyntro.xark0047.workers.dev","X-Title":"VYNTRO AI"},body:JSON.stringify({model:"openrouter/free",temperature:.7,messages:[{role:"system",content:system},{role:"user",content:prompt}]} )});
+        }
+        if (!response.ok) {
+          const t=await response.text();
+          return Response.json({ok:false,error:`${provider} request failed: ${response.status} ${t.slice(0,180)}`},{status:502});
+        }
+        const data=await response.json();
+        const reply=data?.choices?.[0]?.message?.content;
+        if(!reply) return Response.json({ok:false,error:"AI returned an empty response."},{status:502});
+        return Response.json({ok:true,provider,reply:String(reply)});
+      } catch(error) {
+        return Response.json({ok:false,error:String(error?.message||error)},{status:500});
+      }
+    }
+
     if (url.pathname === "/api/quiz" && request.method === "POST") {
       try {
         const body = await request.json().catch(() => ({}));
