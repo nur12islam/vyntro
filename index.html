@@ -18,10 +18,26 @@ body{background:radial-gradient(circle at 12% 0,#292929 0,transparent 34%),radia
 button{width:100%;border:0;border-radius:14px;padding:11px 13px;background:#f3f3f3;color:#090909;font-weight:750;cursor:pointer}.soon{background:#ffffff0d;color:#777;cursor:default}
 .status{text-align:center;color:#666;font-size:11px;margin-top:22px}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.hero h1{font-size:38px}}
+
+/* VYNTRO glass shell */
+.app{padding-top:calc(18px + env(safe-area-inset-top))}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.brandmark{width:42px;height:42px;border:1px solid var(--line);border-radius:15px;background:#ffffff0b;display:grid;place-items:center;font-weight:800;letter-spacing:-.04em;box-shadow:inset 0 1px #fff2}
+.profile{display:flex;align-items:center;gap:9px;padding:7px 11px 7px 8px;border:1px solid var(--line);border-radius:999px;background:#ffffff08;color:#ddd;font-size:12px}
+.avatar{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#111;font-weight:800}
+.card button{position:relative;z-index:2}
+.card.openable{cursor:pointer;transition:transform .2s ease,border-color .2s ease,background .2s ease}
+.card.openable:hover{transform:translateY(-2px);border-color:#ffffff2b;background:#ffffff0a}
+.card.openable:active{transform:scale(.985)}
+.feature{grid-column:1/-1;min-height:155px}
+.feature h2{font-size:22px}
+.section-title{margin-top:28px}
+.nav-note{margin-top:12px;text-align:center;color:#666;font-size:11px}
+@media(max-width:520px){.feature{grid-column:auto}}
 </style>
 </head>
 <body>
-<main class="app">
+<main class="app">\n<div class="topbar"><div class="brandmark">V</div><div class="profile"><span class="avatar" id="avatar">V</span><span id="profileName">VYNTRO</span></div></div>
 <section class="hero"><div class="eyebrow">VYNTRO</div><h1>Create. Play. Explore.</h1><p>A multipurpose space inside Telegram.</p></section>
 <div class="section-title">Utilities</div>
 <section class="grid">
@@ -32,7 +48,7 @@ button{width:100%;border:0;border-radius:14px;padding:11px 13px;background:#f3f3
 <section class="grid"><article class="card"><div class="icon">🃏</div><h2>Card Games</h2><p>UNO-style and other games are planned.</p><button class="soon" disabled>Coming Soon</button></article><article class="card"><div class="icon">🧩</div><h2>Arcade</h2><p>Small games and challenges will live here.</p><button class="soon" disabled>Coming Soon</button></article></section>
 <div class="section-title">Activities</div>
 <section class="grid"><article class="card"><div class="icon">🧠</div><h2>Quizzes</h2><p>Interactive quizzes and challenges.</p><button class="soon" disabled>Coming Soon</button></article><article class="card"><div class="icon">🎡</div><h2>Fun</h2><p>Wheels, dice and social activities.</p><button class="soon" disabled>Coming Soon</button></article></section>
-<div class="status" id="status">VYNTRO v0.1</div>
+<div class="status" id="status">VYNTRO v0.2 • Online</div><div class="nav-note">Built for Telegram • More tools are coming.</div>
 </main>
 <script>
 const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();const u=tg.initDataUnsafe?.user;if(u)document.querySelector("#status").textContent="VYNTRO v0.1 • "+(u.first_name||"Telegram user")}
