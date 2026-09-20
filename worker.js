@@ -429,7 +429,7 @@ class UnoRoom extends DurableObject {
       yourHand: r.players.find(p => p.id === playerId)?.hand || [],
       direction: r.direction,
       uno: r.uno || null,
-      winner: r.winner || null
+      winner: r.winner ?? null
     };
   }
   async fetch(request) {
@@ -529,9 +529,12 @@ class UnoRoom extends DurableObject {
   advanceTurn(card) {
     if (!this.room.players.length) return;
     let step = this.room.direction;
-    if (card?.v==="reverse") this.room.direction *= -1;
-    if (card?.v==="skip") step *= 2;
-    this.room.turn=(this.room.turn + step + this.room.players.length) % this.room.players.length;
+    if (card?.v === "reverse") {
+      this.room.direction *= -1;
+      step = this.room.direction;
+    }
+    if (card?.v === "skip") step *= 2;
+    this.room.turn = (this.room.turn + step + this.room.players.length) % this.room.players.length;
   }
 }
 
