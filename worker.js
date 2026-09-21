@@ -460,6 +460,8 @@ class VyntroProfile extends DurableObject {
       p.updatedAt = Date.now();
       await this.state.storage.put("profile", p);
     }
+    p.level = levelForXP(p.xp);
+    p.levelName = levelName(p.level);
     return p;
   }
 
@@ -493,6 +495,9 @@ class VyntroProfile extends DurableObject {
       if(new Date(now).getHours()<5)unlock("night_owl");
     }
 
+    p.level = levelForXP(p.xp);
+    p.levelName = levelName(p.level);
+    await this.state.storage.put("profile", p);
     return Response.json({ok:true,profile:p,achievements:ACHIEVEMENTS});
   }
 }
@@ -1135,7 +1140,23 @@ export default {
       const id = env.VYNTRO_PROFILE_DO.idFromName(String(user.id));
       const stub = env.VYNTRO_PROFILE_DO.get(id);
       const response = await stub.fetch("https://profile/", {method:"POST",body:JSON.stringify({user})});
-      return response;
+      const data = await response.json();
+      if (!data.ok) return Response.json(data, {status: response.status});
+      const global = env.VYNTRO_GLOBAL_DO.get(env.VYNTRO_GLOBAL_DO.idFromName("global"));
+      await global.fetch("https://global/", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          action:"record",
+          user,
+          totalXP:data.profile.xp,
+          gamesPlayed:data.profile.gamesPlayed,
+          wins:data.profile.wins,
+          xp:0,
+          type:"profile_sync"
+        })
+      });
+      return Response.json(data);
     }
 
     if (url.pathname === "/api/progression/event" && request.method === "POST") {
