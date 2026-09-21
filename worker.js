@@ -479,7 +479,7 @@ class VyntroProfile extends DurableObject {
     if(body.action==="event"){
       const type=String(body.type||""),event=XP_EVENTS[type];
       if(!event)return Response.json({ok:false,error:"Unknown XP event."},{status:400});
-      const now=Date.now(),today=new Date(now).toISOString().slice(0,10),cooldown=type==="daily_visit"?86400000:type==="play"?1800000:(type==="party"||type==="social_play")?600000:0,last=Number(p.lastEvents[type]||0);
+      const now=Date.now(),today=new Date(now).toISOString().slice(0,10),cooldown=type==="daily_visit"?86400000:(type==="party"||type==="social_play")?600000:0,last=Number(p.lastEvents[type]||0);
       if(!cooldown||now-last>=cooldown){
         p.xp+=event.xp;p.lastEvents[type]=now;p.stats[type]=(p.stats[type]||0)+1;
         if(type==="play")p.gamesPlayed++;if(type==="win"||type==="uno_win")p.wins++;
